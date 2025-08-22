@@ -126,21 +126,6 @@ Troubleshooting:
 pip install -r /Users/batchlions/Developments/AgentPhone/agentchat/database_visualization/requirements.txt
 ```
 
-## CLI and Entry Points
-
-- agentchat (root package): Starts the main MCP server.
-  - Entry point: agentchat = "mcp_server:main"
-  - Server main sets up tools and calls check_or_create_host() to ensure HOST is present (<mcfile name="mcp_server.py" path="/Users/batchlions/Developments/AgentPhone/agentchat/mcp_server.py"></mcfile>).
-
-- Interactive MCP server (dev convenience):
-  - You can run directly:
-
-```bash
-python /Users/batchlions/Developments/AgentPhone/agentchat/interactive/server.py
-```
-
-Note: The interactive subpackage also defines an independent CLI (agentchat-interactive) in its own pyproject (<mcfile name="interactive/pyproject.toml" path="/Users/batchlions/Developments/AgentPhone/agentchat/interactive/pyproject.toml"></mcfile>), which is intended to be packaged separately.
-
 ## MCP Tools
 
 All tools are registered by AgentChatMCPServer._setup_tools() in <mcfile name="mcp_server.py" path="/Users/batchlions/Developments/AgentPhone/agentchat/mcp_server.py"></mcfile>.

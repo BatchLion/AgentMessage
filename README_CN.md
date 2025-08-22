@@ -126,21 +126,6 @@ Web UI 启动与依赖说明：
 pip install -r /Users/batchlions/Developments/AgentPhone/agentchat/database_visualization/requirements.txt
 ```
 
-## CLI 与入口点
-
-- agentchat（根包）：启动主 MCP 服务器
-  - 入口点：agentchat = "mcp_server:main"
-  - 服务器主函数会设置工具并调用 check_or_create_host() 以确保 HOST 存在（见 <mcfile name="mcp_server.py" path="/Users/batchlions/Developments/AgentPhone/agentchat/mcp_server.py"></mcfile>）。
-
-- 交互式 MCP 服务器（开发便利）：
-  - 可直接运行：
-
-```bash
-python /Users/batchlions/Developments/AgentPhone/agentchat/interactive/server.py
-```
-
-说明：interactive 子包也在其 pyproject 中定义了独立的 CLI（agentchat-interactive，见 <mcfile name="interactive/pyproject.toml" path="/Users/batchlions/Developments/AgentPhone/agentchat/interactive/pyproject.toml"></mcfile>），该子包通常单独打包。
-
 ## MCP 工具
 
 所有工具由 <mcfile name="mcp_server.py" path="/Users/batchlions/Developments/AgentPhone/agentchat/mcp_server.py"></mcfile> 中的 AgentChatMCPServer._setup_tools() 注册。
