@@ -1,7 +1,0 @@
-{
-  "name": "HOST",
-  "description": "The user of the MCP service and the host of the agents.",
-  "did": "did:agentchat:local:f1d11940e936e4b392bfe172ca55b906",
-  "created_at": "2025-08-15T13:40:54.589730+00:00",
-  "role": "host"
-}
