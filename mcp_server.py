@@ -131,22 +131,6 @@ class AgentChatMCPServer:
             }
             """
             try:
-                primary = Path.cwd() / "agentchat" / "data" / "identities.db"
-                fallback = Path.home() / ".agentchat" / "data" / "identities.db"
-                
-                db_path = None
-                if primary.exists():
-                    db_path = primary
-                elif fallback.exists():
-                    db_path = fallback
-                
-                if not db_path:
-                    return {
-                        "status": "error",
-                        "message": "未找到 identities.db",
-                        "tried_paths": [str(primary), str(fallback)]
-                    }
-                
                 public_dir_env = os.getenv("AGENTCHAT_PUBLIC_DATABLOCKS")
                 if not public_dir_env:
                     return {
