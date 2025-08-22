@@ -1,0 +1,637 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Chat History Visualizer</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/socket.io/4.7.2/socket.io.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: #f5f5f5;
+            color: #333;
+        }
+
+        .header {
+            background: #2c3e50;
+            color: white;
+            padding: 1rem 2rem;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+
+        .header h1 {
+            font-size: 1.5rem;
+            font-weight: 600;
+        }
+
+        .status {
+            display: inline-block;
+            padding: 0.25rem 0.75rem;
+            border-radius: 12px;
+            font-size: 0.8rem;
+            margin-left: 1rem;
+        }
+
+        .status.connected {
+            background: #27ae60;
+        }
+
+        .status.disconnected {
+            background: #e74c3c;
+        }
+
+        .container {
+            max-width: 1400px;
+            margin: 0 auto;
+            padding: 2rem;
+        }
+
+        .stats-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+            gap: 1.5rem;
+            margin-bottom: 2rem;
+        }
+
+        .stat-card {
+            background: white;
+            padding: 1.5rem;
+            border-radius: 8px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+            border-left: 4px solid #3498db;
+        }
+
+        .stat-card h3 {
+            font-size: 0.9rem;
+            color: #666;
+            margin-bottom: 0.5rem;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+
+        .stat-card .value {
+            font-size: 2rem;
+            font-weight: 700;
+            color: #2c3e50;
+        }
+
+        .main-content {
+            display: grid;
+            grid-template-columns: 1fr 350px;
+            gap: 2rem;
+        }
+
+        .messages-panel {
+            background: white;
+            border-radius: 8px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+            overflow: hidden;
+        }
+
+        .panel-header {
+            background: #34495e;
+            color: white;
+            padding: 1rem 1.5rem;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .panel-header h2 {
+            font-size: 1.1rem;
+            font-weight: 600;
+        }
+
+        .filters {
+            display: flex;
+            gap: 1rem;
+            padding: 1rem 1.5rem;
+            background: #ecf0f1;
+            border-bottom: 1px solid #bdc3c7;
+        }
+
+        .filter-group {
+            display: flex;
+            flex-direction: column;
+            gap: 0.25rem;
+        }
+
+        .filter-group label {
+            font-size: 0.8rem;
+            color: #666;
+            font-weight: 500;
+        }
+
+        .filter-group select, .filter-group input {
+            padding: 0.5rem;
+            border: 1px solid #bdc3c7;
+            border-radius: 4px;
+            font-size: 0.9rem;
+        }
+
+        .messages-container {
+            height: 600px;
+            overflow-y: auto;
+            padding: 1rem;
+        }
+
+        .message {
+            background: #f8f9fa;
+            border: 1px solid #e9ecef;
+            border-radius: 8px;
+            padding: 1rem;
+            margin-bottom: 1rem;
+            transition: all 0.2s ease;
+        }
+
+        .message:hover {
+            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+        }
+
+        .message.new {
+            background: #e8f5e8;
+            border-color: #27ae60;
+            animation: slideIn 0.3s ease;
+        }
+
+        @keyframes slideIn {
+            from {
+                opacity: 0;
+                transform: translateY(-10px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        .message-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 0.75rem;
+        }
+
+        .sender {
+            font-weight: 600;
+            color: #2c3e50;
+            font-size: 0.9rem;
+        }
+
+        .timestamp {
+            font-size: 0.8rem;
+            color: #666;
+        }
+
+        .group-id {
+            font-size: 0.75rem;
+            color: #7f8c8d;
+            background: #ecf0f1;
+            padding: 0.25rem 0.5rem;
+            border-radius: 12px;
+        }
+
+        .message-content {
+            color: #2c3e50;
+            line-height: 1.5;
+            font-size: 0.9rem;
+        }
+
+        .message-meta {
+            margin-top: 0.75rem;
+            padding-top: 0.75rem;
+            border-top: 1px solid #e9ecef;
+            font-size: 0.8rem;
+            color: #666;
+        }
+
+        .receivers, .mentions {
+            margin-bottom: 0.5rem;
+        }
+
+        .tag {
+            display: inline-block;
+            background: #3498db;
+            color: white;
+            padding: 0.2rem 0.5rem;
+            border-radius: 12px;
+            font-size: 0.7rem;
+            margin-right: 0.25rem;
+        }
+
+        .sidebar {
+            display: flex;
+            flex-direction: column;
+            gap: 1.5rem;
+        }
+
+        .chart-container {
+            background: white;
+            border-radius: 8px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+            padding: 1.5rem;
+        }
+
+        .chart-container h3 {
+            margin-bottom: 1rem;
+            color: #2c3e50;
+            font-size: 1rem;
+        }
+
+        .chart-canvas {
+            max-height: 300px;
+        }
+
+        .refresh-btn {
+            background: #3498db;
+            color: white;
+            border: none;
+            padding: 0.5rem 1rem;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 0.9rem;
+            transition: background 0.2s ease;
+        }
+
+        .refresh-btn:hover {
+            background: #2980b9;
+        }
+
+        .loading {
+            text-align: center;
+            padding: 2rem;
+            color: #666;
+        }
+
+        @media (max-width: 1024px) {
+            .main-content {
+                grid-template-columns: 1fr;
+            }
+            
+            .container {
+                padding: 1rem;
+            }
+            
+            .stats-grid {
+                grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <h1>Chat History Visualizer</h1>
+        <span id="connectionStatus" class="status disconnected">Disconnected</span>
+    </div>
+
+    <div class="container">
+        <div class="stats-grid">
+            <div class="stat-card">
+                <h3>Total Messages</h3>
+                <div class="value" id="totalMessages">-</div>
+            </div>
+            <div class="stat-card">
+                <h3>Unique Senders</h3>
+                <div class="value" id="uniqueSenders">-</div>
+            </div>
+            <div class="stat-card">
+                <h3>Active Groups</h3>
+                <div class="value" id="uniqueGroups">-</div>
+            </div>
+            <div class="stat-card">
+                <h3>Today's Messages</h3>
+                <div class="value" id="todayMessages">-</div>
+            </div>
+        </div>
+
+        <div class="main-content">
+            <div class="messages-panel">
+                <div class="panel-header">
+                    <h2>Recent Messages</h2>
+                    <button class="refresh-btn" onclick="refreshMessages()">Refresh</button>
+                </div>
+                <div class="filters">
+                    <div class="filter-group">
+                        <label>Group ID</label>
+                        <select id="groupFilter">
+                            <option value="">All Groups</option>
+                        </select>
+                    </div>
+                    <div class="filter-group">
+                        <label>Sender</label>
+                        <select id="senderFilter">
+                            <option value="">All Senders</option>
+                        </select>
+                    </div>
+                    <div class="filter-group">
+                        <label>Limit</label>
+                        <input type="number" id="limitFilter" value="50" min="10" max="500">
+                    </div>
+                </div>
+                <div class="messages-container" id="messagesContainer">
+                    <div class="loading">Loading messages...</div>
+                </div>
+            </div>
+
+            <div class="sidebar">
+                <div class="chart-container">
+                    <h3>Messages per Sender</h3>
+                    <canvas id="senderChart" class="chart-canvas"></canvas>
+                </div>
+                <div class="chart-container">
+                    <h3>Daily Activity (Last 7 Days)</h3>
+                    <canvas id="dailyChart" class="chart-canvas"></canvas>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Initialize Socket.IO connection
+        const socket = io();
+        let messages = [];
+        let statistics = {};
+
+        // Connection status
+        socket.on('connect', function() {
+            document.getElementById('connectionStatus').textContent = 'Connected';
+            document.getElementById('connectionStatus').className = 'status connected';
+            loadInitialData();
+        });
+
+        socket.on('disconnect', function() {
+            document.getElementById('connectionStatus').textContent = 'Disconnected';
+            document.getElementById('connectionStatus').className = 'status disconnected';
+        });
+
+        // Handle new messages
+        socket.on('new_messages', function(data) {
+            if (data.messages && data.messages.length > 0) {
+                // Add new messages to the top
+                data.messages.forEach(msg => {
+                    messages.unshift(msg);
+                });
+                renderMessages();
+                updateStatistics();
+            }
+        });
+
+        // Load initial data
+        function loadInitialData() {
+            fetch('/api/statistics')
+                .then(response => response.json())
+                .then(data => {
+                    statistics = data;
+                    updateStatistics();
+                    updateCharts();
+                    populateFilters();
+                });
+
+            refreshMessages();
+        }
+
+        // Refresh messages
+        function refreshMessages() {
+            const groupId = document.getElementById('groupFilter').value;
+            const senderId = document.getElementById('senderFilter').value;
+            const limit = document.getElementById('limitFilter').value;
+
+            let url = `/api/messages?limit=${limit}`;
+            if (groupId) url += `&group_id=${groupId}`;
+            if (senderId) url += `&sender_did=${senderId}`;
+
+            fetch(url)
+                .then(response => response.json())
+                .then(data => {
+                    messages = data;
+                    renderMessages();
+                });
+        }
+
+        // Update statistics display
+        function updateStatistics() {
+            if (statistics.total_messages !== undefined) {
+                document.getElementById('totalMessages').textContent = statistics.total_messages.toLocaleString();
+            }
+            if (statistics.unique_senders !== undefined) {
+                document.getElementById('uniqueSenders').textContent = statistics.unique_senders;
+            }
+            if (statistics.unique_groups !== undefined) {
+                document.getElementById('uniqueGroups').textContent = statistics.unique_groups;
+            }
+            
+            // Calculate today's messages
+            const today = new Date().toISOString().split('T')[0];
+            const todayCount = statistics.daily_stats ? 
+                statistics.daily_stats.find(d => d[0] === today)?.[1] || 0 : 0;
+            document.getElementById('todayMessages').textContent = todayCount;
+        }
+
+        // Render messages
+        function renderMessages() {
+            const container = document.getElementById('messagesContainer');
+            
+            if (messages.length === 0) {
+                container.innerHTML = '<div class="loading">No messages found</div>';
+                return;
+            }
+
+            container.innerHTML = messages.map(msg => {
+                const content = getMessageContent(msg.message_data);
+                const receivers = msg.receiver_dids.map(did => 
+                    `<span class="tag">${truncateDid(did)}</span>`
+                ).join('');
+                const mentions = msg.mention_dids.map(did => 
+                    `<span class="tag">${truncateDid(did)}</span>`
+                ).join('');
+
+                return `
+                    <div class="message" data-id="${msg.message_id}">
+                        <div class="message-header">
+                            <div class="sender">${truncateDid(msg.sender_did)}</div>
+                            <div class="timestamp">${formatTimestamp(msg.timestamp)}</div>
+                            <div class="group-id">${msg.group_id}</div>
+                        </div>
+                        <div class="message-content">${content}</div>
+                        <div class="message-meta">
+                            <div class="receivers"><strong>To:</strong> ${receivers}</div>
+                            ${mentions ? `<div class="mentions"><strong>Mentions:</strong> ${mentions}</div>` : ''}
+                        </div>
+                    </div>
+                `;
+            }).join('');
+        }
+
+        // Get message content from message_data
+        function getMessageContent(messageData) {
+            if (typeof messageData === 'string') {
+                try {
+                    messageData = JSON.parse(messageData);
+                } catch (e) {
+                    return messageData;
+                }
+            }
+
+            const content = messageData.text || messageData.content || messageData.message || 
+                           JSON.stringify(messageData, null, 2);
+            
+            // Truncate long messages
+            if (content.length > 500) {
+                return content.substring(0, 500) + '...';
+            }
+            
+            return content;
+        }
+
+        // Truncate DID for display
+        function truncateDid(did) {
+            if (did.length > 20) {
+                return did.substring(0, 8) + '...' + did.substring(did.length - 8);
+            }
+            return did;
+        }
+
+        // Format timestamp
+        function formatTimestamp(timestamp) {
+            const date = new Date(timestamp);
+            return date.toLocaleString();
+        }
+
+        // Populate filter dropdowns
+        function populateFilters() {
+            if (!statistics.group_stats || !statistics.sender_stats) return;
+
+            const groupFilter = document.getElementById('groupFilter');
+            const senderFilter = document.getElementById('senderFilter');
+
+            // Clear existing options (except "All")
+            groupFilter.innerHTML = '<option value="">All Groups</option>';
+            senderFilter.innerHTML = '<option value="">All Senders</option>';
+
+            // Add group options
+            statistics.group_stats.forEach(([groupId, count]) => {
+                const option = document.createElement('option');
+                option.value = groupId;
+                option.textContent = `${groupId} (${count} messages)`;
+                groupFilter.appendChild(option);
+            });
+
+            // Add sender options
+            statistics.sender_stats.forEach(([senderId, count]) => {
+                const option = document.createElement('option');
+                option.value = senderId;
+                option.textContent = `${truncateDid(senderId)} (${count} messages)`;
+                senderFilter.appendChild(option);
+            });
+        }
+
+        // Update charts
+        function updateCharts() {
+            updateSenderChart();
+            updateDailyChart();
+        }
+
+        // Sender chart
+        let senderChart;
+        function updateSenderChart() {
+            const ctx = document.getElementById('senderChart').getContext('2d');
+            
+            if (senderChart) {
+                senderChart.destroy();
+            }
+
+            if (!statistics.sender_stats) return;
+
+            const data = statistics.sender_stats.slice(0, 5); // Top 5 senders
+            
+            senderChart = new Chart(ctx, {
+                type: 'doughnut',
+                data: {
+                    labels: data.map(([did, count]) => truncateDid(did)),
+                    datasets: [{
+                        data: data.map(([did, count]) => count),
+                        backgroundColor: [
+                            '#3498db', '#e74c3c', '#2ecc71', '#f39c12', '#9b59b6'
+                        ]
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        legend: {
+                            position: 'bottom'
+                        }
+                    }
+                }
+            });
+        }
+
+        // Daily chart
+        let dailyChart;
+        function updateDailyChart() {
+            const ctx = document.getElementById('dailyChart').getContext('2d');
+            
+            if (dailyChart) {
+                dailyChart.destroy();
+            }
+
+            if (!statistics.daily_stats) return;
+
+            const data = statistics.daily_stats.reverse(); // Oldest first
+            
+            dailyChart = new Chart(ctx, {
+                type: 'line',
+                data: {
+                    labels: data.map(([date, count]) => new Date(date).toLocaleDateString()),
+                    datasets: [{
+                        label: 'Messages',
+                        data: data.map(([date, count]) => count),
+                        borderColor: '#3498db',
+                        backgroundColor: 'rgba(52, 152, 219, 0.1)',
+                        tension: 0.4,
+                        fill: true
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    scales: {
+                        y: {
+                            beginAtZero: true
+                        }
+                    },
+                    plugins: {
+                        legend: {
+                            display: false
+                        }
+                    }
+                }
+            });
+        }
+
+        // Event listeners
+        document.getElementById('groupFilter').addEventListener('change', refreshMessages);
+        document.getElementById('senderFilter').addEventListener('change', refreshMessages);
+        document.getElementById('limitFilter').addEventListener('change', refreshMessages);
+
+        // Auto-refresh statistics every 30 seconds
+        setInterval(() => {
+            fetch('/api/statistics')
+                .then(response => response.json())
+                .then(data => {
+                    statistics = data;
+                    updateStatistics();
+                    updateCharts();
+                });
+        }, 30000);
+    </script>
+</body>
+</html>

@@ -1,0 +1,1331 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Agent Chat Interface</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/socket.io/4.7.2/socket.io.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/highlight.min.js"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/styles/github-dark.min.css">
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: #000;
+            color: #fff;
+            height: 100vh;
+            overflow: hidden;
+        }
+
+        .chat-container {
+            display: grid;
+            grid-template-columns: 250px 1fr 280px;
+            height: 100vh;
+        }
+
+        /* Left Sidebar - Conversations */
+        .conversations-sidebar {
+            background: #1a1a1a;
+            border-right: 1px solid #333;
+            display: flex;
+            flex-direction: column;
+            overflow: hidden; /* keep header fixed and scroll only the list */
+        }
+
+        .sidebar-header {
+            padding: 1rem;
+            border-bottom: 1px solid #333;
+            font-weight: 600;
+            font-size: 0.9rem;
+            color: #ccc;
+        }
+
+        .conversation-list {
+            flex: 1;
+            overflow-y: auto;
+            -webkit-overflow-scrolling: touch; /* smooth on iOS/macOS */
+            overscroll-behavior: contain;      /* prevent overscroll chaining */
+            scrollbar-gutter: stable both-edges; /* reserve space for scrollbar */
+            scrollbar-width: thin;               /* Firefox thin scrollbar */
+        }
+
+        /* WebKit scrollbar styling */
+        .conversation-list::-webkit-scrollbar {
+            width: 10px;
+        }
+        .conversation-list::-webkit-scrollbar-track {
+            background: #1a1a1a;
+        }
+        .conversation-list::-webkit-scrollbar-thumb {
+            background-color: #444;
+            border-radius: 8px;
+            border: 2px solid #1a1a1a;
+        }
+        .conversation-list::-webkit-scrollbar-thumb:hover {
+            background-color: #555;
+        }
+
+        .conversation-item {
+            padding: 0.75rem 1rem;
+            border-bottom: 1px solid #2a2a2a;
+            cursor: pointer;
+            transition: background 0.2s ease;
+        }
+
+        .conversation-item:hover {
+            background: #2a2a2a;
+        }
+
+        .conversation-item.active {
+            background: #333;
+            border-left: 3px solid #007bff;
+        }
+
+        .conversation-title {
+            font-weight: 500;
+            font-size: 0.9rem;
+            margin-bottom: 0.25rem;
+        }
+
+        .conversation-preview {
+            font-size: 0.8rem;
+            color: #888;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+        }
+
+        .conversation-meta {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-top: 0.25rem;
+        }
+
+        .message-count {
+            background: #007bff;
+            color: white;
+            font-size: 0.7rem;
+            padding: 0.2rem 0.4rem;
+            border-radius: 10px;
+            min-width: 18px;
+            text-align: center;
+        }
+
+        .last-time {
+            font-size: 0.7rem;
+            color: #666;
+        }
+
+        /* Main Chat Area */
+        .chat-main {
+            background: #c0c0c0;
+            display: flex;
+            flex-direction: column;
+            position: relative;
+            height: 100vh; /* Ensure full height */
+            overflow: hidden; /* Prevent main container from scrolling */
+        }
+
+        .chat-header {
+            background: #b0b0b0;
+            padding: 1rem;
+            border-bottom: 1px solid #999;
+            font-weight: 600;
+            color: #333;
+        }
+
+        .messages-container {
+            flex: 1;
+            padding: 1rem;
+            overflow-y: auto;
+            overflow-x: hidden;
+            display: flex;
+            flex-direction: column;
+            gap: 1rem;
+            min-height: 0; /* Important for flex containers */
+            max-height: calc(100vh - 140px); /* Ensure container has a max height */
+        }
+
+        .message {
+            max-width: 70%;
+            padding: 0.75rem 1rem;
+            border-radius: 18px;
+            position: relative;
+            word-wrap: break-word;
+            flex-shrink: 0; /* Prevent messages from shrinking */
+        }
+
+        .message.sent {
+            align-self: flex-end;
+            background: #007bff;
+            color: white;
+        }
+
+        .message.received {
+            align-self: flex-start;
+            background: white;
+            color: #333;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+        }
+
+        .message-sender {
+            display: flex;
+            align-items: center;
+            margin-bottom: 0.5rem;
+        }
+
+        .sender-avatar {
+            width: 32px;
+            height: 32px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: 600;
+            font-size: 0.8rem;
+            margin-right: 0.5rem;
+            color: white;
+            border: 2px solid rgba(255, 255, 255, 0.2);
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+        }
+
+        .sender-avatar.host {
+            background: linear-gradient(135deg, #9c27b0, #673ab7);
+        }
+
+        /* Agent avatar colors will be set dynamically via JavaScript */
+
+        .message-content {
+            line-height: 1.4;
+        }
+
+        /* Markdown Content Styling */
+        .message-content h1,
+        .message-content h2,
+        .message-content h3,
+        .message-content h4,
+        .message-content h5,
+        .message-content h6 {
+            margin: 0.5rem 0 0.25rem 0;
+            font-weight: 600;
+        }
+
+        .message-content h1 { font-size: 1.2rem; }
+        .message-content h2 { font-size: 1.1rem; }
+        .message-content h3 { font-size: 1rem; }
+        .message-content h4 { font-size: 0.95rem; }
+
+        .message-content p {
+            margin: 0.25rem 0;
+        }
+
+        .message-content ul,
+        .message-content ol {
+            margin: 0.5rem 0;
+            padding-left: 1.5rem;
+        }
+
+        .message-content li {
+            margin: 0.25rem 0;
+        }
+
+        .message-content blockquote {
+            border-left: 3px solid #ddd;
+            margin: 0.5rem 0;
+            padding-left: 1rem;
+            font-style: italic;
+            opacity: 0.8;
+        }
+
+        .message.sent blockquote {
+            border-left-color: rgba(255, 255, 255, 0.5);
+        }
+
+        .message-content code {
+            background: rgba(0, 0, 0, 0.1);
+            padding: 0.2rem 0.4rem;
+            border-radius: 3px;
+            font-family: 'Monaco', 'Menlo', 'Ubuntu Mono', monospace;
+            font-size: 0.85rem;
+        }
+
+        .message.sent code {
+            background: rgba(255, 255, 255, 0.2);
+        }
+
+        .message-content pre {
+            background: rgba(0, 0, 0, 0.1);
+            padding: 0.75rem;
+            border-radius: 6px;
+            overflow-x: auto;
+            margin: 0.5rem 0;
+            font-family: 'Monaco', 'Menlo', 'Ubuntu Mono', monospace;
+            font-size: 0.85rem;
+        }
+
+        .message.sent pre {
+            background: rgba(255, 255, 255, 0.15);
+        }
+
+        .message-content pre code {
+            background: none;
+            padding: 0;
+        }
+
+        .message-content a {
+            color: #007bff;
+            text-decoration: none;
+        }
+
+        .message-content a:hover {
+            text-decoration: underline;
+        }
+
+        .message.sent a {
+            color: #87ceeb;
+        }
+
+        .message-content img {
+            max-width: 100%;
+            height: auto;
+            border-radius: 8px;
+            margin: 0.5rem 0;
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+        }
+
+        .message-content table {
+            border-collapse: collapse;
+            width: 100%;
+            margin: 0.5rem 0;
+            font-size: 0.9rem;
+        }
+
+        .message-content th,
+        .message-content td {
+            border: 1px solid #ddd;
+            padding: 0.5rem;
+            text-align: left;
+        }
+
+        .message-content th {
+            background: rgba(0, 0, 0, 0.1);
+            font-weight: 600;
+        }
+
+        .message.sent th {
+            background: rgba(255, 255, 255, 0.2);
+        }
+
+        .message.sent td {
+            border-color: rgba(255, 255, 255, 0.3);
+        }
+
+        /* Image viewer modal */
+        .image-modal {
+            display: none;
+            position: fixed;
+            z-index: 1000;
+            left: 0;
+            top: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.9);
+            cursor: pointer;
+        }
+
+        .image-modal img {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            max-width: 90%;
+            max-height: 90%;
+            border-radius: 8px;
+        }
+
+        .image-modal .close {
+            position: absolute;
+            top: 20px;
+            right: 30px;
+            color: white;
+            font-size: 2rem;
+            font-weight: bold;
+            cursor: pointer;
+        }
+
+        /* Code syntax highlighting adjustments */
+        .message-content .hljs {
+            background: transparent !important;
+        }
+
+        .message.sent .hljs {
+            color: #e6e6e6 !important;
+        }
+
+        .message-time {
+            font-size: 0.7rem;
+            opacity: 0.7;
+            margin-top: 0.25rem;
+        }
+
+        /* Message Input Area */
+        .message-input-container {
+            background: #b0b0b0;
+            padding: 1rem;
+            border-top: 1px solid #999;
+        }
+
+        .input-wrapper {
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+
+        .message-input {
+            flex: 1;
+            padding: 0.75rem 1rem;
+            border: 1px solid #999;
+            border-radius: 20px;
+            background: white;
+            color: #333;
+            font-size: 0.9rem;
+            outline: none;
+        }
+
+        .message-input:focus {
+            border-color: #007bff;
+        }
+
+        .send-button {
+            background: #007bff;
+            color: white;
+            border: none;
+            padding: 0.75rem 1.5rem;
+            border-radius: 20px;
+            cursor: pointer;
+            font-weight: 500;
+            transition: background 0.2s ease;
+        }
+
+        .send-button:hover {
+            background: #0056b3;
+        }
+
+        .send-button:disabled {
+            background: #666;
+            cursor: not-allowed;
+        }
+
+        /* Right Sidebar - Agents */
+        .agents-sidebar {
+            background: #1a1a1a;
+            border-left: 1px solid #333;
+            display: flex;
+            flex-direction: column;
+        }
+
+        .agents-header {
+            padding: 1rem;
+            border-bottom: 1px solid #333;
+            font-weight: 600;
+            font-size: 0.9rem;
+            color: #ccc;
+        }
+
+        .agents-list {
+            flex: 1;
+            overflow-y: auto;
+        }
+
+        .agent-item {
+            padding: 0.75rem 1rem;
+            border-bottom: 1px solid #2a2a2a;
+            display: flex;
+            align-items: center;
+            gap: 0.75rem;
+        }
+
+        .agent-avatar {
+            width: 36px;
+            height: 36px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: 600;
+            font-size: 0.8rem;
+            color: white;
+            border: 2px solid rgba(255, 255, 255, 0.1);
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
+        }
+
+        /* Agent avatar colors will be set dynamically via JavaScript */
+
+        .agent-info {
+            flex: 1;
+        }
+
+        .agent-name {
+            font-weight: 500;
+            font-size: 0.9rem;
+            margin-bottom: 0.2rem;
+        }
+
+        .agent-description {
+            font-size: 0.8rem;
+            color: #888;
+        }
+
+        .agent-status {
+            width: 12px;
+            height: 12px;
+            border-radius: 50%;
+            background: #4caf50;
+        }
+
+        .agent-status.offline {
+            background: #666;
+        }
+
+        /* Chat Theme Section */
+        .chat-theme-section {
+            background: #2a2a2a;
+            border-top: 1px solid #333;
+            padding: 1rem;
+        }
+
+        .theme-header {
+            font-weight: 600;
+            font-size: 0.9rem;
+            color: #ccc;
+            margin-bottom: 0.75rem;
+        }
+
+        .theme-input {
+            width: 100%;
+            padding: 0.75rem;
+            border: 1px solid #444;
+            border-radius: 8px;
+            background: #333;
+            color: #fff;
+            font-size: 0.9rem;
+            margin-bottom: 0.75rem;
+        }
+
+        .theme-input:focus {
+            outline: none;
+            border-color: #007bff;
+        }
+
+        .start-chat-button {
+            width: 100%;
+            background: #333;
+            color: #ccc;
+            border: none;
+            padding: 0.75rem;
+            border-radius: 8px;
+            cursor: pointer;
+            font-weight: 500;
+            transition: background 0.2s ease;
+        }
+
+        .start-chat-button:hover {
+            background: #444;
+        }
+
+        /* Empty State */
+        .empty-state {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            flex: 1;
+            color: #666;
+            text-align: center;
+            min-height: 200px;
+        }
+
+        .empty-state h3 {
+            margin-bottom: 0.5rem;
+            color: #333;
+        }
+
+        /* Loading State */
+        .loading {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 2rem;
+            color: #666;
+        }
+
+        /* Responsive Design */
+        @media (max-width: 768px) {
+            .chat-container {
+                grid-template-columns: 1fr;
+            }
+            
+            .conversations-sidebar,
+            .agents-sidebar {
+                display: none;
+            }
+        }
+
+        /* Scrollbar Styling */
+        ::-webkit-scrollbar {
+            width: 8px;
+        }
+
+        ::-webkit-scrollbar-track {
+            background: #2a2a2a;
+        }
+
+        ::-webkit-scrollbar-thumb {
+            background: #444;
+            border-radius: 4px;
+        }
+
+        ::-webkit-scrollbar-thumb:hover {
+            background: #555;
+        }
+
+        /* Messages container specific scrollbar */
+        .messages-container::-webkit-scrollbar {
+            width: 8px;
+        }
+
+        .messages-container::-webkit-scrollbar-track {
+            background: #b0b0b0;
+        }
+
+        .messages-container::-webkit-scrollbar-thumb {
+            background: #888;
+            border-radius: 4px;
+        }
+
+        .messages-container::-webkit-scrollbar-thumb:hover {
+            background: #666;
+        }
+    </style>
+</head>
+<body>
+    <div class="chat-container">
+        <!-- Left Sidebar - Conversations -->
+        <div class="conversations-sidebar">
+            <div class="sidebar-header">
+                Conversations
+            </div>
+            <div class="conversation-list" id="conversationList">
+                <div class="loading">Loading conversations...</div>
+            </div>
+        </div>
+
+        <!-- Main Chat Area -->
+        <div class="chat-main">
+            <div class="chat-header" id="chatHeader">
+                Select a conversation to start chatting
+            </div>
+            <div class="messages-container" id="messagesContainer">
+                <div class="empty-state">
+                    <h3>Welcome to Agent Chat</h3>
+                    <p>Select a conversation from the sidebar to view messages</p>
+                </div>
+            </div>
+            <div class="message-input-container">
+                <div class="input-wrapper">
+                    <input 
+                        type="text" 
+                        class="message-input" 
+                        id="messageInput"
+                        placeholder="Type your message..."
+                        disabled
+                    >
+                    <button class="send-button" id="sendButton" disabled>Send</button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Right Sidebar - Agents -->
+        <div class="agents-sidebar">
+            <div class="agents-header">
+                Agents to chat with
+            </div>
+            <div class="agents-list" id="agentsList">
+                <div class="loading">Loading agents...</div>
+            </div>
+            
+            <div class="chat-theme-section">
+                <div class="theme-header">Chat Theme</div>
+                <input 
+                    type="text" 
+                    class="theme-input" 
+                    placeholder="e.g. How to train a dragon?"
+                    id="themeInput"
+                >
+                <button class="start-chat-button" id="startChatButton">
+                    Start Chatting
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Image Modal -->
+    <div class="image-modal" id="imageModal">
+        <span class="close" id="closeModal">&times;</span>
+        <img id="modalImage" src="" alt="Full size image">
+    </div>
+
+    <script>
+        // Initialize Socket.IO connection
+        const socket = io({
+            transports: ['websocket', 'polling'],
+            reconnection: true,
+            reconnectionAttempts: Infinity,
+            reconnectionDelay: 1000,
+            reconnectionDelayMax: 5000,
+            timeout: 20000
+        });
+
+        socket.on('connect', () => {
+            console.log('[socket] connected', socket.id);
+            // 如果已有当前会话，连接成功后可主动加入一次，保证会话补齐
+            if (typeof currentConversation !== 'undefined' && currentConversation) {
+                socket.emit('join_conversation', { group_id: currentConversation });
+            }
+        });
+        socket.on('connect_error', (err) => console.warn('[socket] connect_error', err));
+        socket.on('disconnect', (reason) => console.warn('[socket] disconnect', reason));
+        socket.on('reconnect', (attempt) => {
+            console.log('[socket] reconnected', attempt);
+            // 重连后会话重入
+            if (typeof currentConversation !== 'undefined' && currentConversation) {
+                socket.emit('join_conversation', { group_id: currentConversation });
+            }
+        });
+        
+        let currentConversation = null;
+        let conversations = [];
+        let agents = [];
+        let agentNames = {}; // DID to name mapping
+        let hostInfo = null;
+        let messages = [];
+        let statistics = {};
+        // 新增：用来去重的 message_id 集合
+        let displayedMessageIds = new Set();
+
+        // Configure marked for markdown rendering
+        marked.setOptions({
+            highlight: function(code, lang) {
+                if (lang && hljs.getLanguage(lang)) {
+                    try {
+                        return hljs.highlight(code, { language: lang }).value;
+                    } catch (err) {}
+                }
+                return hljs.highlightAuto(code).value;
+            },
+            breaks: true,
+            gfm: true
+        });
+
+        // Color palette for agent avatars
+        const agentColors = [
+            { bg: 'linear-gradient(135deg, #FF6B6B, #FF8E53)', border: '#FF6B6B' }, // Red-Orange
+            { bg: 'linear-gradient(135deg, #4ECDC4, #44A08D)', border: '#4ECDC4' }, // Teal-Green
+            { bg: 'linear-gradient(135deg, #45B7D1, #96C93D)', border: '#45B7D1' }, // Blue-Green
+            { bg: 'linear-gradient(135deg, #F093FB, #F5576C)', border: '#F093FB' }, // Pink-Red
+            { bg: 'linear-gradient(135deg, #4FACFE, #00F2FE)', border: '#4FACFE' }, // Blue-Cyan
+            { bg: 'linear-gradient(135deg, #43E97B, #38F9D7)', border: '#43E97B' }, // Green-Cyan
+            { bg: 'linear-gradient(135deg, #FA709A, #FEE140)', border: '#FA709A' }, // Pink-Yellow
+            { bg: 'linear-gradient(135deg, #A8EDEA, #FED6E3)', border: '#A8EDEA' }, // Mint-Pink
+            { bg: 'linear-gradient(135deg, #FF9A9E, #FECFEF)', border: '#FF9A9E' }, // Coral-Pink
+            { bg: 'linear-gradient(135deg, #667eea, #764ba2)', border: '#667eea' }, // Purple-Blue
+            { bg: 'linear-gradient(135deg, #f093fb, #f5576c)', border: '#f093fb' }, // Magenta-Red
+            { bg: 'linear-gradient(135deg, #ffecd2, #fcb69f)', border: '#ffecd2' }, // Peach-Orange
+        ];
+
+        // Generate consistent color for agent based on name/DID
+        function getAgentColor(identifier) {
+            if (!identifier) return agentColors[0];
+            
+            // Create a simple hash from the identifier
+            let hash = 0;
+            for (let i = 0; i < identifier.length; i++) {
+                const char = identifier.charCodeAt(i);
+                hash = ((hash << 5) - hash) + char;
+                hash = hash & hash; // Convert to 32-bit integer
+            }
+            
+            // Use absolute value and modulo to get consistent color index
+            const colorIndex = Math.abs(hash) % agentColors.length;
+            return agentColors[colorIndex];
+        }
+
+        // Apply color to avatar element
+        function applyAvatarColor(element, identifier) {
+            const color = getAgentColor(identifier);
+            element.style.background = color.bg;
+            element.style.borderColor = color.border + '40'; // Add transparency
+        }
+
+        // DOM elements
+        const conversationList = document.getElementById('conversationList');
+        const agentsList = document.getElementById('agentsList');
+        const messagesContainer = document.getElementById('messagesContainer');
+        const chatHeader = document.getElementById('chatHeader');
+        const messageInput = document.getElementById('messageInput');
+        const sendButton = document.getElementById('sendButton');
+        const themeInput = document.getElementById('themeInput');
+        const startChatButton = document.getElementById('startChatButton');
+
+        // Socket events
+        socket.on('connect', function() {
+            console.log('Connected to server');
+            loadAgentNames();
+            loadConversations();
+            loadAgents();
+        });
+
+        socket.on('conversation_messages', function(data) {
+            if (data.group_id === currentConversation) {
+                displayMessages(data.messages);
+            }
+        });
+
+        socket.on('message_sent', function(data) {
+            // Handle new message broadcast
+            if (data.group_id === currentConversation) {
+                addMessageToChat(data);
+            }
+        });
+
+        // Load conversations
+        function loadConversations() {
+            fetch('/api/conversations')
+                .then(response => response.json())
+                .then(data => {
+                    conversations = data;
+                    renderConversations();
+                })
+                .catch(error => {
+                    console.error('Error loading conversations:', error);
+                    conversationList.innerHTML = '<div class="loading">Error loading conversations</div>';
+                });
+        }
+
+        // Load agent names mapping
+        function loadAgentNames() {
+            fetch('/api/agent-names')
+                .then(response => response.json())
+                .then(data => {
+                    agentNames = data;
+                })
+                .catch(error => {
+                    console.error('Error loading agent names:', error);
+                });
+        }
+
+        // Load agents
+        function loadAgents() {
+            Promise.all([
+                fetch('/api/agents').then(r => r.json()),
+                fetch('/api/host-info').then(r => r.json())
+            ])
+                .then(([agentsData, hostData]) => {
+                    agents = Array.isArray(agentsData) ? agentsData : [];
+                    if (hostData && !hostData.error) {
+                        hostInfo = hostData;
+                    } else {
+                        hostInfo = null;
+                    }
+                    renderAgents();
+                })
+                .catch(error => {
+                    console.error('Error loading agents:', error);
+                    agentsList.innerHTML = '<div class="loading">Error loading agents</div>';
+                });
+        }
+
+        // Render conversations
+        function renderConversations() {
+            if (conversations.length === 0) {
+                conversationList.innerHTML = '<div class="loading">No conversations found</div>';
+                return;
+            }
+
+            conversationList.innerHTML = conversations.map(conv => `
+                <div class="conversation-item" data-group-id="${conv.group_id}">
+                    <div class="conversation-title">${conv.display_name}</div>
+                    <div class="conversation-preview">
+                        ${conv.participant_names ? conv.participant_names.join(', ') : conv.participants.length + ' participant(s)'}
+                    </div>
+                    <div class="conversation-meta">
+                        <span class="message-count">${conv.message_count}</span>
+                        <span class="last-time">${formatTime(conv.last_message)}</span>
+                    </div>
+                </div>
+            `).join('');
+
+            // Add click handlers
+            document.querySelectorAll('.conversation-item').forEach(item => {
+                item.addEventListener('click', () => {
+                    const groupId = item.dataset.groupId;
+                    selectConversation(groupId);
+                });
+            });
+        }
+
+        // Render agents
+        function renderAgents() {
+            if (!Array.isArray(agents) || agents.length === 0) {
+                agentsList.innerHTML = '<div class="loading">No agents found</div>';
+                return;
+            }
+
+            // Render: HOST first (always selected, disabled) + other agents
+            const parts = [];
+
+            if (hostInfo && hostInfo.did) {
+                parts.push(`
+                    <div class="agent-item">
+                        <input type="checkbox" class="agent-select host-select" value="${hostInfo.did}" checked disabled style="transform:scale(1.2);" />
+                        <div class="agent-avatar" data-agent-id="${hostInfo.did}">${(hostInfo.display_name || 'HOST').substring(0, 2).toUpperCase()}</div>
+                        <div class="agent-info">
+                            <div class="agent-name">${hostInfo.display_name || 'HOST'} (YOU)</div>
+                            <div class="agent-description">${hostInfo.description || 'Local host agent'}</div>
+                        </div>
+                        <div class="agent-status online"></div>
+                    </div>
+                `);
+            }
+
+            parts.push(...agents
+                .filter(agent => !hostInfo || agent.did !== hostInfo.did)
+                .map(agent => `
+                    <div class="agent-item">
+                        <input type="checkbox" class="agent-select" value="${agent.did}" style="transform:scale(1.2);" />
+                        <div class="agent-avatar" data-agent-id="${agent.did}">${agent.display_name.substring(0, 2).toUpperCase()}</div>
+                        <div class="agent-info">
+                            <div class="agent-name">${agent.display_name}</div>
+                            <div class="agent-description">${agent.description}</div>
+                        </div>
+                        <div class="agent-status ${agent.is_online ? 'online' : 'offline'}"></div>
+                    </div>
+                `)
+            );
+
+            agentsList.innerHTML = parts.join('');
+
+            // Apply colors to agent avatars
+            document.querySelectorAll('.agent-avatar[data-agent-id]').forEach(avatar => {
+                const agentId = avatar.getAttribute('data-agent-id');
+                applyAvatarColor(avatar, agentId);
+            });
+        }
+
+        // Select conversation
+        function selectConversation(groupId) {
+            // Update UI: set active state based on selected groupId
+            document.querySelectorAll('.conversation-item').forEach(item => {
+                item.classList.toggle('active', item.getAttribute('data-group-id') === groupId);
+            });
+
+            currentConversation = groupId;
+
+            // 使用与左侧列表一致的标题：conv.display_name；若未找到则回退到原先的“Chat 后8位”
+            const selectedConv = Array.isArray(conversations)
+                ? conversations.find(c => c.group_id === groupId)
+                : null;
+            const displayName = (selectedConv && selectedConv.display_name)
+                ? selectedConv.display_name
+                : `Chat ${groupId.slice(-8)}`;
+            chatHeader.textContent = displayName;
+            
+            // 切换对话时，重置去重集合
+            displayedMessageIds = new Set();
+
+            // Enable input
+            messageInput.disabled = false;
+            sendButton.disabled = false;
+            messageInput.focus();
+
+            // Join conversation and load messages
+            socket.emit('join_conversation', { group_id: groupId });
+        }
+
+        // Display messages
+        function displayMessages(messages) {
+            if (messages.length === 0) {
+                messagesContainer.innerHTML = `
+                    <div class="empty-state">
+                        <h3>No messages yet</h3>
+                        <p>Start the conversation by sending a message</p>
+                    </div>
+                `;
+                return;
+            }
+
+            messagesContainer.innerHTML = messages.map(msg => {
+                const content = getMessageContent(msg.message_data);
+                const senderName = getSenderName(msg.sender_did);
+                const isHost = isHostSender(msg.sender_did);
+                
+                return `
+                    <div class="message ${isHost ? 'sent' : 'received'}" data-message-id="${msg.message_id || ''}">
+                        <div class="message-sender">
+                            <div class="sender-avatar ${isHost ? 'host' : 'agent'}" data-agent-id="${msg.sender_did}">
+                                ${isHost ? 'HOST' : senderName.substring(0, 2).toUpperCase()}
+                            </div>
+                            <span>${senderName}</span>
+                        </div>
+                        <div class="message-content">${content}</div>
+                        <div class="message-time">${formatTime(msg.timestamp)}</div>
+                    </div>
+                `;
+            }).join('');
+
+            // 新增：把已显示的消息ID放入集合，避免后续重复渲染
+            messages.forEach(m => {
+                if (m.message_id) {
+                    displayedMessageIds.add(m.message_id);
+                }
+            });
+
+            // Apply colors to message avatars
+            document.querySelectorAll('.sender-avatar[data-agent-id]:not(.host)').forEach(avatar => {
+                const agentId = avatar.getAttribute('data-agent-id');
+                applyAvatarColor(avatar, agentId);
+            });
+
+            // Ensure scrolling works and scroll to bottom
+            setTimeout(() => {
+                messagesContainer.scrollTop = messagesContainer.scrollHeight;
+            }, 100);
+        }
+
+        // Add new message to chat（增强：支持占位与替换）
+        function addMessageToChat(messageData) {
+            // 统一读取 client_msg_id（优先顶层，其次 message_data 内部）
+            const clientMsgId = messageData.client_msg_id || (messageData.message_data && messageData.message_data.client_msg_id);
+
+            // 如果带有真实 message_id，优先尝试用 client_msg_id 替换已有占位
+            if (messageData.message_id) {
+                if (clientMsgId) {
+                    const placeholder = messagesContainer.querySelector(`.message[data-client-msg-id="${clientMsgId}"]`);
+                    if (placeholder) {
+                        // 替换占位为真实消息
+                        placeholder.setAttribute('data-message-id', messageData.message_id);
+                        placeholder.removeAttribute('data-client-msg-id');
+                        placeholder.classList.remove('pending');
+
+                        // 更新内容（时间、正文、头像）
+                        const contentHtml = getMessageContent(messageData.message_data);
+                        const senderName = getSenderName(messageData.sender_did);
+                        const isHost = isHostSender(messageData.sender_did);
+
+                        placeholder.className = `message ${isHost ? 'sent' : 'received'}`;
+                        placeholder.innerHTML = `
+                            <div class="message-sender">
+                                <div class="sender-avatar ${isHost ? 'host' : 'agent'}" data-agent-id="${messageData.sender_did}">
+                                    ${isHost ? 'HOST' : senderName.substring(0, 2).toUpperCase()}
+                                </div>
+                                <span>${senderName}</span>
+                            </div>
+                            <div class="message-content">${contentHtml}</div>
+                            <div class="message-time">${formatTime(messageData.timestamp || new Date().toISOString())}</div>
+                        `;
+
+                        // 颜色
+                        const newAvatar = placeholder.querySelector('.sender-avatar[data-agent-id]:not(.host)');
+                        if (newAvatar) {
+                            const agentId = newAvatar.getAttribute('data-agent-id');
+                            applyAvatarColor(newAvatar, agentId);
+                        }
+
+                        // 去重登记
+                        displayedMessageIds.add(messageData.message_id);
+
+                        // 滚动
+                        setTimeout(() => {
+                            messagesContainer.scrollTo({
+                                top: messagesContainer.scrollHeight,
+                                behavior: 'smooth'
+                            });
+                        }, 50);
+                        return; // 已完成替换，结束
+                    }
+                }
+
+                // 正常去重：如果已显示过该 message_id，直接忽略
+                if (displayedMessageIds.has(messageData.message_id)) return;
+                displayedMessageIds.add(messageData.message_id);
+            } else {
+                // 无 message_id：把它当作占位（仅当存在 client_msg_id）
+                if (clientMsgId) {
+                    const existed = messagesContainer.querySelector(`.message[data-client-msg-id="${clientMsgId}"]`);
+                    if (existed) {
+                        // 已有占位，忽略重复的占位广播
+                        return;
+                    }
+                }
+            }
+
+            // 构造并追加消息（真实或占位）
+            const content = getMessageContent(messageData.message_data);
+            const senderName = getSenderName(messageData.sender_did);
+            const isHost = isHostSender(messageData.sender_did);
+
+            const messageElement = document.createElement('div');
+            messageElement.className = `message ${isHost ? 'sent' : 'received'}`;
+            if (messageData.message_id) {
+                messageElement.setAttribute('data-message-id', messageData.message_id);
+            } else if (clientMsgId) {
+                messageElement.setAttribute('data-client-msg-id', clientMsgId);
+                messageElement.classList.add('pending'); // 可选的视觉标识（无需新增CSS也可正常显示）
+            }
+            messageElement.innerHTML = `
+                <div class="message-sender">
+                    <div class="sender-avatar ${isHost ? 'host' : 'agent'}" data-agent-id="${messageData.sender_did}">
+                        ${isHost ? 'HOST' : senderName.substring(0, 2).toUpperCase()}
+                    </div>
+                    <span>${senderName}</span>
+                </div>
+                <div class="message-content">${content}</div>
+                <div class="message-time">${formatTime(messageData.timestamp || new Date().toISOString())}</div>
+            `;
+
+            messagesContainer.appendChild(messageElement);
+
+            const newAvatar = messageElement.querySelector('.sender-avatar[data-agent-id]:not(.host)');
+            if (newAvatar) {
+                const agentId = newAvatar.getAttribute('data-agent-id');
+                applyAvatarColor(newAvatar, agentId);
+            }
+
+            setTimeout(() => {
+                messagesContainer.scrollTo({
+                    top: messagesContainer.scrollHeight,
+                    behavior: 'smooth'
+                });
+            }, 50);
+        }
+
+        // Get message content with markdown and image support
+        function getMessageContent(messageData) {
+            if (typeof messageData === 'string') {
+                try {
+                    messageData = JSON.parse(messageData);
+                } catch (e) {
+                    return renderContent(messageData);
+                }
+            }
+
+            // Extract content from various possible fields
+            let content = messageData.text || messageData.content || messageData.message;
+            
+            // Handle different message types
+            if (messageData.type === 'image' && messageData.url) {
+                content = `![Image](${messageData.url})`;
+            } else if (messageData.image_url) {
+                content = `![Image](${messageData.image_url})\n\n${content || ''}`;
+            } else if (messageData.file_url && isImageFile(messageData.file_url)) {
+                content = `![Image](${messageData.file_url})\n\n${content || ''}`;
+            }
+
+            // If no recognizable content, stringify the object
+            if (!content) {
+                content = '```json\n' + JSON.stringify(messageData, null, 2) + '\n```';
+            }
+
+            return renderContent(content);
+        }
+
+        // Render content as markdown
+        function renderContent(content) {
+            if (!content) return '';
+            
+            // Convert string content to markdown HTML
+            const htmlContent = marked.parse(content);
+            
+            // Make images clickable for full-size viewing
+            return htmlContent.replace(
+                /<img([^>]+)src="([^"]+)"([^>]*)>/g,
+                '<img$1src="$2"$3 onclick="openImageModal(\'$2\')" style="cursor: pointer;">'
+            );
+        }
+
+        // Check if file is an image
+        function isImageFile(url) {
+            const imageExtensions = /\.(jpg|jpeg|png|gif|bmp|webp|svg)$/i;
+            return imageExtensions.test(url);
+        }
+
+        // Open image in modal
+        function openImageModal(imageSrc) {
+            const modal = document.getElementById('imageModal');
+            const modalImg = document.getElementById('modalImage');
+            modal.style.display = 'block';
+            modalImg.src = imageSrc;
+        }
+
+        // Close image modal
+        function closeImageModal() {
+            document.getElementById('imageModal').style.display = 'none';
+        }
+
+        // Get sender name from DID
+        function getSenderName(senderDid) {
+            // Check if it's the HOST DID (from host.json)
+            if (senderDid === 'did:agentchat:local:f1d11940e936e4b392bfe172ca55b906' || senderDid.includes('HOST')) {
+                return 'HOST';
+            }
+            
+            // Try to get name from agent names mapping
+            if (agentNames[senderDid]) {
+                return agentNames[senderDid];
+            }
+            
+            // Fallback to shortened DID
+            return senderDid.split(':').pop().substring(0, 8);
+        }
+
+        // Check if sender is HOST
+        function isHostSender(senderDid) {
+            return senderDid === 'did:agentchat:local:f1d11940e936e4b392bfe172ca55b906' || 
+                   senderDid.includes('HOST') || 
+                   getSenderName(senderDid) === 'HOST';
+        }
+
+        // Format time
+        function formatTime(timestamp) {
+            const date = new Date(timestamp);
+            return date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+        }
+
+        // Send message（增强：生成 client_msg_id 一并上送）
+        function sendMessage() {
+            const message = messageInput.value.trim();
+            if (!message || !currentConversation) return;
+
+            // Disable input while sending
+            messageInput.disabled = true;
+            sendButton.disabled = true;
+            sendButton.textContent = 'Sending...';
+
+            // 新增：为本次消息生成 client_msg_id
+            let clientMsgId = null;
+            try {
+                clientMsgId = (crypto && crypto.randomUUID) ? crypto.randomUUID() : (Date.now().toString(36) + Math.random().toString(36).slice(2));
+            } catch (e) {
+                clientMsgId = (Date.now().toString(36) + Math.random().toString(36).slice(2));
+            }
+
+            const messageData = {
+                group_id: currentConversation,
+                message_text: message,
+                client_msg_id: clientMsgId
+            };
+
+            socket.emit('send_message', messageData);
+            messageInput.value = '';
+        }
+
+        // Handle message sending success
+        socket.on('message_success', function(data) {
+            console.log('Message sent successfully:', data);
+            
+            // Re-enable input
+            messageInput.disabled = false;
+            sendButton.disabled = false;
+            sendButton.textContent = 'Send';
+            messageInput.focus();
+        });
+
+        // Handle message sending errors
+        socket.on('message_error', function(data) {
+            console.error('Message sending error:', data.error);
+            alert('Failed to send message: ' + data.error);
+            
+            // Re-enable input
+            messageInput.disabled = false;
+            sendButton.disabled = false;
+            sendButton.textContent = 'Send';
+            messageInput.focus();
+        });
+
+        // Event listeners
+        messageInput.addEventListener('keypress', (e) => {
+            if (e.key === 'Enter') {
+                sendMessage();
+            }
+        });
+
+        sendButton.addEventListener('click', sendMessage);
+
+        function getSelectedAgents() {
+            return Array.from(document.querySelectorAll('.agent-select:checked:not(.host-select)')).map(el => el.value);
+        }
+
+        startChatButton.addEventListener('click', async () => {
+            const theme = themeInput.value.trim();
+            const selected = getSelectedAgents();
+
+            if (!selected.length) {
+                alert('Please select at least one agent to start a chat.');
+                return;
+            }
+
+            try {
+                const resp = await fetch('/api/create-conversation', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ agent_dids: selected, theme })
+                });
+                const data = await resp.json();
+                if (!resp.ok || data.error) {
+                    throw new Error(data.error || 'Failed to create conversation');
+                }
+
+                // Always refresh from backend to avoid duplicates and preserve order
+                await loadConversations();
+                selectConversation(data.group_id);
+
+                // Reset input and uncheck non-HOST checkboxes
+                themeInput.value = '';
+                document.querySelectorAll('.agent-select:not(.host-select)').forEach(el => el.checked = false);
+            } catch (e) {
+                console.error('Start chatting error:', e);
+                alert('Failed to start chat: ' + e.message);
+            }
+        });
+
+        // Image modal event listeners
+        document.getElementById('closeModal').addEventListener('click', closeImageModal);
+        document.getElementById('imageModal').addEventListener('click', function(e) {
+            if (e.target === this) {
+                closeImageModal();
+            }
+        });
+
+        // Close modal with Escape key
+        document.addEventListener('keydown', function(e) {
+            if (e.key === 'Escape') {
+                closeImageModal();
+            }
+        });
+
+        // Auto-refresh data every 30 seconds
+        setInterval(() => {
+            loadAgentNames();
+            loadConversations();
+            loadAgents();
+        }, 30000);
+    </script>
+</body>
+</html>
