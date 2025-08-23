@@ -202,13 +202,19 @@ class AgentChatMCPServer:
         @self.mcp.tool()
         async def send_message(
             receiver_dids: list[str],
-            message_data: dict
+            message_data: dict,
+            wait_for_replies: bool = False,
+            poll_interval: int = 5,
+            timeout: int = 300
         ) -> dict:
-            """向服务器发送消息，并存储到 $AGENTCHAT_PUBLIC_DATABLOCKS/chat_history.db
+            """向receiver_dids列表中的每个接收者发送消息，并存储到 $AGENTCHAT_PUBLIC_DATABLOCKS/chat_history.db
             
             入参:
             - receiver_dids: 接收者 DID 列表（不能为空）
             - message_data: 消息数据对象（可包含文本、代码、图片、音频、视频、文件名与格式等）
+            - wait_for_replies: 是否等待所有接收者的回复（默认 True）
+            - poll_interval: 轮询间隔秒数（默认 5 秒）
+            - timeout: 等待超时时间秒数（默认 300 秒）
             
             处理流程:
             - 读取发送者 DID（当前智能体）
@@ -237,10 +243,6 @@ class AgentChatMCPServer:
               "database_path": "/absolute/path/to/chat_history.db"
             }
             """
-            wait_for_replies: bool = True # - wait_for_replies: 是否等待所有接收者的回复（默认 True）
-            poll_interval: int = 5 # - poll_interval: 轮询间隔秒数（默认 5 秒）
-            timeout: int = 300 # - timeout: 等待超时时间秒数（默认 300 秒）
-            
             # 获取发送者身份
             try:
                 identity_manager = IdentityManager()
@@ -263,7 +265,8 @@ class AgentChatMCPServer:
                 }
             
             from chat.send_message import _send_message
-            return await _send_message(sender_did, receiver_dids, message_data)
+            return await _send_message(sender_did, receiver_dids, message_data,
+                                       wait_for_replies, poll_interval, timeout)
 
         @self.mcp.tool()
         async def chat_room(limit: int = 10, poll_interval: int = 5, timeout: int | None = None) -> dict:

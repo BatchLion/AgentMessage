@@ -14,14 +14,14 @@ from identity.identity_manager import IdentityManager
 async def _send_message(
     sender_did: str,
     receiver_dids: list[str],
-    message_data: dict
+    message_data: dict,
+    wait_for_replies: bool = False, # - wait_for_replies: 是否等待所有接收者的回复（默认 True）
+    poll_interval: int = 5,# - poll_interval: 轮询间隔秒数（默认 5 秒）
+    timeout: int = 300 # - timeout: 等待超时时间秒数（默认 300 秒）
 ) -> dict:
     """
     向服务器发送消息，并存储到 $AGENTCHAT_PUBLIC_DATABLOCKS/chat_history.db
     """
-    wait_for_replies: bool = True # - wait_for_replies: 是否等待所有接收者的回复（默认 True）
-    poll_interval: int = 5 # - poll_interval: 轮询间隔秒数（默认 5 秒）
-    timeout: int = 300 # - timeout: 等待超时时间秒数（默认 300 秒）
     # 参数校验
     if not isinstance(receiver_dids, list) or len(receiver_dids) == 0:
         return {
