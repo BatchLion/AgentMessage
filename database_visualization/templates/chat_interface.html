@@ -695,7 +695,7 @@
 
         socket.on('connect', () => {
             console.log('[socket] connected', socket.id);
-            // 如果已有当前会话，连接成功后可主动加入一次，保证会话补齐
+            // If a current conversation exists, proactively join once after connection to ensure the conversation is complete
             if (typeof currentConversation !== 'undefined' && currentConversation) {
                 socket.emit('join_conversation', { group_id: currentConversation });
             }
@@ -704,7 +704,7 @@
         socket.on('disconnect', (reason) => console.warn('[socket] disconnect', reason));
         socket.on('reconnect', (attempt) => {
             console.log('[socket] reconnected', attempt);
-            // 重连后会话重入
+            // Re-enter conversation after reconnection
             if (typeof currentConversation !== 'undefined' && currentConversation) {
                 socket.emit('join_conversation', { group_id: currentConversation });
             }
@@ -717,7 +717,7 @@
         let hostInfo = null;
         let messages = [];
         let statistics = {};
-        // 新增：用来去重的 message_id 集合
+        // New: a set of message_ids for deduplication
         let displayedMessageIds = new Set();
 
         // Configure marked for markdown rendering
@@ -938,7 +938,7 @@
 
             currentConversation = groupId;
 
-            // 使用与左侧列表一致的标题：conv.display_name；若未找到则回退到原先的“Chat 后8位”
+            // Use consistent title with left sidebar: conv.display_name; fallback to original "Chat last 8 digits" if not found
             const selectedConv = Array.isArray(conversations)
                 ? conversations.find(c => c.group_id === groupId)
                 : null;
@@ -947,7 +947,7 @@
                 : `Chat ${groupId.slice(-8)}`;
             chatHeader.textContent = displayName;
             
-            // 切换对话时，重置去重集合
+            // When switching conversations, reset the deduplication set
             displayedMessageIds = new Set();
 
             // Enable input
@@ -990,7 +990,7 @@
                 `;
             }).join('');
 
-            // 新增：把已显示的消息ID放入集合，避免后续重复渲染
+            // New: put displayed message IDs into the set to avoid subsequent duplicate rendering
             messages.forEach(m => {
                 if (m.message_id) {
                     displayedMessageIds.add(m.message_id);
@@ -1009,22 +1009,22 @@
             }, 100);
         }
 
-        // Add new message to chat（增强：支持占位与替换）
+        // Add new message to chat (Enhanced: support placeholder and replacement)
         function addMessageToChat(messageData) {
-            // 统一读取 client_msg_id（优先顶层，其次 message_data 内部）
+            // Unified reading of client_msg_id (priority: top level, then inside message_data)
             const clientMsgId = messageData.client_msg_id || (messageData.message_data && messageData.message_data.client_msg_id);
 
-            // 如果带有真实 message_id，优先尝试用 client_msg_id 替换已有占位
+            // If it has a real message_id, try to replace existing placeholder with client_msg_id first
             if (messageData.message_id) {
                 if (clientMsgId) {
                     const placeholder = messagesContainer.querySelector(`.message[data-client-msg-id="${clientMsgId}"]`);
                     if (placeholder) {
-                        // 替换占位为真实消息
+                        // Replace placeholder with real message
                         placeholder.setAttribute('data-message-id', messageData.message_id);
                         placeholder.removeAttribute('data-client-msg-id');
                         placeholder.classList.remove('pending');
 
-                        // 更新内容（时间、正文、头像）
+                        // Update content (time, body, avatar)
                         const contentHtml = getMessageContent(messageData.message_data);
                         const senderName = getSenderName(messageData.sender_did);
                         const isHost = isHostSender(messageData.sender_did);
@@ -1041,42 +1041,42 @@
                             <div class="message-time">${formatTime(messageData.timestamp || new Date().toISOString())}</div>
                         `;
 
-                        // 颜色
+                        // Apply colors
                         const newAvatar = placeholder.querySelector('.sender-avatar[data-agent-id]:not(.host)');
                         if (newAvatar) {
                             const agentId = newAvatar.getAttribute('data-agent-id');
                             applyAvatarColor(newAvatar, agentId);
                         }
 
-                        // 去重登记
+                        // Register for deduplication
                         displayedMessageIds.add(messageData.message_id);
 
-                        // 滚动
+                        // Scroll
                         setTimeout(() => {
                             messagesContainer.scrollTo({
                                 top: messagesContainer.scrollHeight,
                                 behavior: 'smooth'
                             });
                         }, 50);
-                        return; // 已完成替换，结束
+                        return; // Replacement completed, end
                     }
                 }
 
-                // 正常去重：如果已显示过该 message_id，直接忽略
+                // Normal deduplication: if this message_id has been displayed, ignore directly
                 if (displayedMessageIds.has(messageData.message_id)) return;
                 displayedMessageIds.add(messageData.message_id);
             } else {
-                // 无 message_id：把它当作占位（仅当存在 client_msg_id）
+                // No message_id: treat it as placeholder (only when client_msg_id exists)
                 if (clientMsgId) {
                     const existed = messagesContainer.querySelector(`.message[data-client-msg-id="${clientMsgId}"]`);
                     if (existed) {
-                        // 已有占位，忽略重复的占位广播
+                        // Placeholder already exists, ignore duplicate placeholder broadcast
                         return;
                     }
                 }
             }
 
-            // 构造并追加消息（真实或占位）
+            // Construct and append message (real or placeholder)
             const content = getMessageContent(messageData.message_data);
             const senderName = getSenderName(messageData.sender_did);
             const isHost = isHostSender(messageData.sender_did);
@@ -1087,7 +1087,7 @@
                 messageElement.setAttribute('data-message-id', messageData.message_id);
             } else if (clientMsgId) {
                 messageElement.setAttribute('data-client-msg-id', clientMsgId);
-                messageElement.classList.add('pending'); // 可选的视觉标识（无需新增CSS也可正常显示）
+                messageElement.classList.add('pending'); // Optional visual indicator (can display normally without new CSS)
             }
             messageElement.innerHTML = `
                 <div class="message-sender">
@@ -1182,7 +1182,7 @@
         // Get sender name from DID
         function getSenderName(senderDid) {
             // Check if it's the HOST DID (from host.json)
-            if (senderDid === 'did:agentchat:local:f1d11940e936e4b392bfe172ca55b906' || senderDid.includes('HOST')) {
+            if (senderDid === 'did:agentmessage:local:f1d11940e936e4b392bfe172ca55b906' || senderDid.includes('HOST')) {
                 return 'HOST';
             }
             
@@ -1197,7 +1197,7 @@
 
         // Check if sender is HOST
         function isHostSender(senderDid) {
-            return senderDid === 'did:agentchat:local:f1d11940e936e4b392bfe172ca55b906' || 
+            return senderDid === 'did:agentmessage:local:f1d11940e936e4b392bfe172ca55b906' || 
                    senderDid.includes('HOST') || 
                    getSenderName(senderDid) === 'HOST';
         }
@@ -1208,7 +1208,7 @@
             return date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
         }
 
-        // Send message（增强：生成 client_msg_id 一并上送）
+        // Send message (Enhanced: generate client_msg_id and send together)
         function sendMessage() {
             const message = messageInput.value.trim();
             if (!message || !currentConversation) return;
@@ -1218,7 +1218,7 @@
             sendButton.disabled = true;
             sendButton.textContent = 'Sending...';
 
-            // 新增：为本次消息生成 client_msg_id
+            // New: generate client_msg_id for this message
             let clientMsgId = null;
             try {
                 clientMsgId = (crypto && crypto.randomUUID) ? crypto.randomUUID() : (Date.now().toString(36) + Math.random().toString(36).slice(2));

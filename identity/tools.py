@@ -1,4 +1,7 @@
-"""身份管理工具"""
+"""
+Identity management tools
+Provides functions for registering, recalling identity information and going online
+"""
 
 import os
 import sqlite3
@@ -12,26 +15,26 @@ def register_recall_id(
     description: Optional[str] = None,
     capabilities: Optional[list] = None
 ) -> Dict[str, Any]:
-    """注册或回忆智能体身份信息
+    """Register or recall agent identity information
     
     Args:
-        name: 智能体名称（可选）
-        description: 智能体描述（可选）
-        capabilities: 智能体能力列表（可选）
+        name: Agent name (optional)
+        description: Agent description (optional)
+        capabilities: Agent capability list (optional)
     
     Returns:
-        包含身份信息或提示信息的字典
+        Dictionary containing identity information or prompt information
     """
     identity_manager = IdentityManager()
     
-    # 检查是否已有身份信息
+    # Check if identity information already exists
     if identity_manager.has_identity():
-        # 如果已有身份信息，直接返回
+        # If identity information already exists, return directly
         existing_identity = identity_manager.load_identity()
         if existing_identity:
             return {
                 "status": "success",
-                "message": "智能体身份信息已存在",
+                "message": "Agent identity information already exists",
                 "identity": {
                     "name": existing_identity.name,
                     "description": existing_identity.description,
@@ -40,27 +43,27 @@ def register_recall_id(
                 }
             }
     
-    # 如果没有身份信息，检查参数
+    # If no identity information exists, check parameters
     if not name or not description or not capabilities:
         return {
             "status": "error",
-            "message": "请提供智能体的name、description和capabilities参数",
+            "message": "Please provide name, description, and capabilities parameters",
             "required_params": {
-                "name": "智能体名称",
-                "description": "智能体描述",
-                "capabilities": "智能体能力列表（数组格式）"
+                "name": "Agent name",
+                "description": "Agent description",
+                "capabilities": "Agent capability list (array format)"
             }
         }
     
-    # 创建新的身份信息
+    # Create new identity information
     try:
         new_identity = identity_manager.create_identity(name, description, capabilities)
         
-        # 保存身份信息
+        # Save identity information
         if identity_manager.save_identity(new_identity):
             return {
                 "status": "success",
-                "message": "智能体身份信息创建成功",
+                "message": "Agent identity information created successfully",
                 "identity": {
                     "name": new_identity.name,
                     "description": new_identity.description,
@@ -71,32 +74,31 @@ def register_recall_id(
         else:
             return {
                 "status": "error",
-                "message": "保存身份信息失败"
+                "message": "Failed to save identity information"
             }
     
     except Exception as e:
         return {
             "status": "error",
-            "message": f"创建身份信息失败: {str(e)}"
+            "message": f"Failed to create identity information: {str(e)}"
         }
 
 def go_online() -> Dict[str, Any]:
-    """将智能体身份信息公开，使其他智能体可见
+    """Make agent identity information public and visible to other agents
     
-    该工具从AGENTCHAT_MEMORY_PATH检索身份信息，
-    并将身份发布到 $AGENTCHAT_PUBLIC_DATABLOCKS/identities.db。
-    如果身份信息为空，提示先使用register_recall_id工具；
-    如果未设置AGENTCHAT_PUBLIC_DATABLOCKS，则提示在MCP配置文件中增加该环境变量的定义。
+    This tool retrieves identity information from AGENTCHAT_MEMORY_PATH,
+    and publishes the identity to $AGENTCHAT_PUBLIC_DATABLOCKS/identities.db.
+    If identity information is empty, prompts to use register_recall_id tool first;
+    If AGENTCHAT_PUBLIC_DATABLOCKS is not set, prompts to add the environment variable definition in the MCP configuration file.
     
-    环境变量:
-    - AGENTCHAT_MEMORY_PATH: 指定智能体身份记忆存储目录（读取）
-    - AGENTCHAT_PUBLIC_DATABLOCKS: 指定公开数据库目录（写入 identities.db）
-    
+    Environment Variables:
+    - AGENTCHAT_MEMORY_PATH: Specifies the agent identity memory storage directory (read)
+    - AGENTCHAT_PUBLIC_DATABLOCKS: Specifies the public database directory (write identities.db)
     Returns:
-        包含操作状态、消息、已发布身份信息以及数据库路径的字典，例如:
+        Dictionary containing operation status, message, published identity information, and database path, e.g.:
         {
             "status": "success" | "error",
-            "message": "说明信息",
+            "message": "Agent identity information has been successfully published to the public database | Failed to publish identity information: {error message}",
             "published_identity": {
                 "did": "...",
                 "name": "...",
@@ -106,53 +108,53 @@ def go_online() -> Dict[str, Any]:
             "database_path": "/absolute/path/to/identities.db"
         }
     """
-    # 检查AGENTCHAT_MEMORY_PATH环境变量
+    # Check AGENTCHAT_MEMORY_PATH environment variable
     memory_path = os.getenv('AGENTCHAT_MEMORY_PATH')
     if not memory_path:
         return {
             "status": "error",
-            "message": "未设置AGENTCHAT_MEMORY_PATH环境变量"
+            "message": "AGENTCHAT_MEMORY_PATH environment variable is not set"
         }
     
-    # 使用IdentityManager加载身份信息
+    # Use IdentityManager to load identity information
     identity_manager = IdentityManager()
     
     if not identity_manager.has_identity():
         return {
             "status": "error",
-            "message": "AGENTCHAT_MEMORY_PATH中的身份信息为空，请先使用register_recall_id工具注册身份信息，然后重试"
+            "message": "Identity information in AGENTCHAT_MEMORY_PATH is empty, please use register_recall_id tool to register identity information first, then retry"
         }
     
-    # 加载身份信息
+    # Load identity information
     identity = identity_manager.load_identity()
     if not identity:
         return {
             "status": "error",
-            "message": "无法加载身份信息，请检查身份文件是否损坏"
+            "message": "Failed to load identity information, please check if the identity file is corrupted"
         }
     
     try:
-        # 使用 AGENTCHAT_PUBLIC_DATABLOCKS 环境变量指定公开数据库目录
+        # Use AGENTCHAT_PUBLIC_DATABLOCKS environment variable to specify public database directory
         public_dir_env = os.getenv('AGENTCHAT_PUBLIC_DATABLOCKS')
         if not public_dir_env:
             return {
                 "status": "error",
-                "message": "未设置AGENTCHAT_PUBLIC_DATABLOCKS环境变量，请在MCP配置文件中增加该环境变量的定义后重试"
+                "message": "AGENTCHAT_PUBLIC_DATABLOCKS environment variable is not set, please add it to the MCP configuration file and retry"
             }
         data_dir = Path(public_dir_env)
         if data_dir.exists() and not data_dir.is_dir():
             return {
                 "status": "error",
-                "message": f"AGENTCHAT_PUBLIC_DATABLOCKS指向的路径不是目录: {str(data_dir)}"
+                "message": f"AGENTCHAT_PUBLIC_DATABLOCKS points to a non-directory path: {str(data_dir)}"
             }
         data_dir.mkdir(parents=True, exist_ok=True)
         
-        # 连接到 $AGENTCHAT_PUBLIC_DATABLOCKS/identities.db 数据库
+        # Connect to $AGENTCHAT_PUBLIC_DATABLOCKS/identities.db database
         db_path = data_dir / "identities.db"
         conn = sqlite3.connect(db_path)
         cursor = conn.cursor()
         
-        # 创建identities表（如果不存在）
+        # Create identities table (if not exists)
         cursor.execute("""
             CREATE TABLE IF NOT EXISTS identities (
                 did TEXT PRIMARY KEY,
@@ -164,11 +166,11 @@ def go_online() -> Dict[str, Any]:
             )
         """)
         
-        # 将capabilities列表转换为JSON字符串
+        # Convert capabilities list to JSON string
         import json
         capabilities_json = json.dumps(identity.capabilities, ensure_ascii=False)
         
-        # 插入或更新身份信息
+        # Insert or update identity information
         cursor.execute("""
             INSERT OR REPLACE INTO identities 
             (did, name, description, capabilities, updated_at)
@@ -180,7 +182,7 @@ def go_online() -> Dict[str, Any]:
         
         return {
             "status": "success",
-            "message": f"智能体身份信息已成功发布到公开数据库",
+            "message": "Agent identity information has been successfully published to the public database",
             "published_identity": {
                 "did": identity.did,
                 "name": identity.name,
@@ -193,5 +195,5 @@ def go_online() -> Dict[str, Any]:
     except Exception as e:
         return {
             "status": "error",
-            "message": f"发布身份信息失败: {str(e)}"
+            "message": f"Failed to publish identity information: {str(e)}"
         }

@@ -15,80 +15,80 @@ async def _send_message(
     sender_did: str,
     receiver_dids: list[str],
     message_data: dict,
-    wait_for_replies: bool = False, # - wait_for_replies: 是否等待所有接收者的回复（默认 True）
-    poll_interval: int = 5,# - poll_interval: 轮询间隔秒数（默认 5 秒）
-    timeout: int = 300 # - timeout: 等待超时时间秒数（默认 300 秒）
+    wait_for_replies: bool = False, # - wait_for_replies: Whether to wait for replies from all receivers (default True)
+    poll_interval: int = 5,# - poll_interval: Polling interval in seconds (default 5 seconds)
+    timeout: int = 300 # - timeout: Timeout for waiting in seconds (default 300 seconds)
 ) -> dict:
     """
-    向服务器发送消息，并存储到 $AGENTCHAT_PUBLIC_DATABLOCKS/chat_history.db
+    Send message to server and store it in $AGENTCHAT_PUBLIC_DATABLOCKS/chat_history.db
     """
-    # 参数校验
+    # Parameter validation
     if not isinstance(receiver_dids, list) or len(receiver_dids) == 0:
         return {
             "status": "error",
-            "message": "receiver_dids 不能为空且必须为数组"
+            "message": "receiver_dids cannot be empty and must be an array"
         }
     if not isinstance(message_data, dict):
         return {
             "status": "error",
-            "message": "message_data 必须为对象"
+            "message": "message_data must be an object"
         }
     
-    # 获取发送者身份
+    # Get sender identity
     try:
         identity_manager = IdentityManager()
         if not identity_manager.has_identity():
             return {
                 "status": "error",
-                "message": "未找到本机身份信息，请先通过 register_recall_id 注册身份"
+                "message": "Local identity information not found, please register identity first through register_recall_id"
             }
         identity = identity_manager.load_identity()
         if not identity:
             return {
                 "status": "error",
-                "message": "无法加载本机身份信息"
+                "message": "Unable to load local identity information"
             }
         sender_did = identity.did
     except Exception as e:
         return {
             "status": "error",
-            "message": f"读取发送者身份失败: {str(e)}"
+            "message": f"Failed to read sender identity: {str(e)}"
         }
     
-    # 新增：验证 receiver_dids 是否都存在于 identities.db 中
+    # New: Verify if all receiver_dids exist in identities.db
     try:
         public_dir_env = os.getenv("AGENTCHAT_PUBLIC_DATABLOCKS")
         if not public_dir_env:
             return {
                 "status": "error",
-                "message": "未设置AGENTCHAT_PUBLIC_DATABLOCKS环境变量，请在MCP配置文件中增加该环境变量的定义"
+                "message": "AGENTCHAT_PUBLIC_DATABLOCKS environment variable not set, please add this environment variable definition in MCP configuration file"
             }
         id_db_path = Path(public_dir_env) / "identities.db"
         if not id_db_path.exists():
             return {
                 "status": "error",
-                "message": "未找到 identities.db",
+                "message": "identities.db not found",
                 "expected_path": str(id_db_path)
             }
         
-        # 查询接收者 DID 在 identities.db 中的存在情况
-        uniq_receivers = list(dict.fromkeys(receiver_dids))  # 去重保持顺序
+        # Query receiver DIDs existence in identities.db
+        uniq_receivers = list(dict.fromkeys(receiver_dids))  # Remove duplicates while preserving order
         placeholders = ",".join("?" for _ in uniq_receivers)
         conn_ids = sqlite3.connect(id_db_path)
         try:
             cur = conn_ids.cursor()
-            # 查询数据库中存在的 DIDs
+            # Query existing DIDs in database
             cur.execute(
                 f"SELECT did FROM identities WHERE did IN ({placeholders})",
                 tuple(uniq_receivers),
             )
             existing_dids = {row[0] for row in cur.fetchall()}
             
-            # 找出不存在的 DIDs
+            # Find non-existing DIDs
             missing_dids = [did for did in uniq_receivers if did not in existing_dids]
             
             if missing_dids:
-                # 如果有不存在的 DID，获取所有身份记录供校对
+                # If there are non-existing DIDs, get all identity records for verification
                 cur.execute(
                     """
                     SELECT did, name, description, capabilities, created_at, updated_at
@@ -118,7 +118,7 @@ async def _send_message(
                 
                 return {
                     "status": "error",
-                    "message": f"接收者列表中有 {len(missing_dids)} 个 DID 不存在于 identities.db 数据库中。请从下面的身份记录中选择正确的接收者 DID，并重新发送消息。",
+                    "message": f"There are {len(missing_dids)} DIDs in the receiver list that do not exist in the identities.db database. Please select the correct receiver DIDs from the identity records below and resend the message.",
                     "missing_dids": missing_dids,
                     "receiver_dids": receiver_dids,
                     "identities": all_identities,
@@ -129,29 +129,29 @@ async def _send_message(
     except Exception as e:
         return {
             "status": "error",
-            "message": f"验证接收者 DID 失败: {str(e)}",
+            "message": f"Failed to verify receiver DIDs: {str(e)}",
             "receiver_dids": receiver_dids
         }
 
-    # 新增：接收者列表排除发送者校验
+    # New: Exclude sender from receiver list validation
     if sender_did in receiver_dids:
         try:
             public_dir_env = os.getenv("AGENTCHAT_PUBLIC_DATABLOCKS")
             if not public_dir_env:
                 return {
                     "status": "error",
-                    "message": "未设置AGENTCHAT_PUBLIC_DATABLOCKS环境变量，请在MCP配置文件中增加该环境变量的定义"
+                    "message": "AGENTCHAT_PUBLIC_DATABLOCKS environment variable not set, please add this environment variable definition in MCP configuration file"
                 }
             id_db_path = Path(public_dir_env) / "identities.db"
             if not id_db_path.exists():
                 return {
                     "status": "error",
-                    "message": "未找到 identities.db",
+                    "message": "identities.db not found",
                     "expected_path": str(id_db_path),
                     "receiver_dids": receiver_dids
                 }
             
-            # 查询接收者（含发送者自身）在 identities.db 中的身份记录
+            # Query receivers (including sender) identity records in identities.db
             uniq_receivers = list(dict.fromkeys(receiver_dids))
             placeholders = ",".join("?" for _ in uniq_receivers)
             conn_ids = sqlite3.connect(id_db_path)
@@ -188,7 +188,7 @@ async def _send_message(
             
             return {
                 "status": "error",
-                "message": "接收者列表包含发送者（你正在给自己发消息）。请根据返回的身份记录确认接收者身份信息，并从接收者列表中移除你自己的DID后再重试。",
+                "message": "Receiver list contains sender (you are sending a message to yourself). Please confirm the receiver identity information based on the returned identity records and remove your own DID from the receiver list before retrying.",
                 "receiver_dids": receiver_dids,
                 "sender_did": sender_did,
                 "identities": identities,
@@ -197,24 +197,24 @@ async def _send_message(
         except Exception as e:
             return {
                 "status": "error",
-                "message": f"校验接收者列表失败: {str(e)}",
+                "message": f"Failed to validate receiver list: {str(e)}",
                 "receiver_dids": receiver_dids,
                 "sender_did": sender_did
             }
     
-    # 生成时间与ID
+    # Generate timestamp and ID
     now_utc = datetime.now(timezone.utc)
     beijing_time = now_utc.astimezone(timezone(timedelta(hours=8)))
     timestamp_str = beijing_time.strftime("%Y-%m-%d %H:%M:%S")
     epoch_ms = int(now_utc.timestamp() * 1000)
     
-    # 计算 group_id（基于 DID 集合哈希）
+    # Calculate group_id (based on DID set hash)
     unique_dids = sorted(set([sender_did] + receiver_dids))
     group_basis = "|".join(unique_dids)
     group_hash = hashlib.sha256(group_basis.encode("utf-8")).hexdigest()[:16]
     group_id = f"grp_{group_hash}"
     
-    # 生成 message_id（时间戳 + 内容哈希）
+    # Generate message_id (timestamp + content hash)
     try:
         msg_payload_preview = json.dumps(message_data, ensure_ascii=False, sort_keys=True)
     except Exception:
@@ -222,10 +222,10 @@ async def _send_message(
     mid_basis = f"{sender_did}|{','.join(sorted(receiver_dids))}|{epoch_ms}|{msg_payload_preview}"
     message_id = f"msg_{epoch_ms}_{hashlib.sha256(mid_basis.encode('utf-8')).hexdigest()[:12]}"
     
-    # 解析 @ 提及
+    # Parse @ mentions
     mention_dids: list[str] = []
     try:
-        # 提取文本候选字段
+        # Extract text candidate fields
         text_candidates = []
         if "text" in message_data and isinstance(message_data["text"], str):
             text_candidates.append(message_data["text"])
@@ -239,15 +239,15 @@ async def _send_message(
         
         # @all
         if re.search(r"(^|\s)@all(\b|$)", combined_text):
-            mention_dids = list(dict.fromkeys(receiver_dids))  # 去重保持顺序
+            mention_dids = list(dict.fromkeys(receiver_dids))  # Remove duplicates while preserving order
         else:
-            # 先基于 DID 匹配
+            # First match based on DID
             mentioned = set()
             for did in receiver_dids:
                 if f"@{did}" in combined_text:
                     mentioned.add(did)
             
-            # 再基于名称匹配（从 identities.db 读取接收者名称映射）
+            # Then match based on name (read receiver name mapping from identities.db)
             try:
                 public_dir_env = os.getenv("AGENTCHAT_PUBLIC_DATABLOCKS")
                 if public_dir_env:
@@ -269,19 +269,19 @@ async def _send_message(
                         finally:
                             conn_ids.close()
             except Exception:
-                # 名称解析失败不影响发送
+                # Name resolution failure does not affect sending
                 pass
             
             mention_dids = list(mentioned)
     except Exception:
         mention_dids = []
     
-    # 写入 chat_history.db
+    # Write to chat_history.db
     try:
-        # 初始化数据库（内部会检查 AGENTCHAT_PUBLIC_DATABLOCKS 是否已设置）
+        # Initialize database (internally checks if AGENTCHAT_PUBLIC_DATABLOCKS is set)
         db_path = init_chat_history_db()
         
-        # 初始化 read_status：所有接收者标记为未读（false）
+        # Initialize read_status: mark all receivers as unread (false)
         read_status = {did: False for did in receiver_dids}
         
         conn = sqlite3.connect(db_path)
@@ -308,7 +308,7 @@ async def _send_message(
         finally:
             conn.close()
         
-        # 基础返回数据
+        # Base return data
         base_data = {
             "message_id": message_id,
             "timestamp": timestamp_str,
@@ -320,25 +320,25 @@ async def _send_message(
             "read_status": read_status,
         }
         
-        # 如果不等待回复，直接返回
+        # If not waiting for replies, return directly
         if not wait_for_replies:
             return {
                 "status": "success",
-                "message": "消息已发送",
+                "message": "Message sent",
                 "data": base_data,
                 "database_path": str(db_path),
             }
         
-        # 等待回复功能
+        # Wait for replies functionality
         start_time = time.time()
         replies = []
         
         while time.time() - start_time < timeout:
-            # 轮询检查是否所有接收者都已回复
+            # Poll to check if all receivers have replied
             conn = sqlite3.connect(db_path)
             try:
                 cursor = conn.cursor()
-                # 查找在该群组中发送时间晚于原消息的新消息
+                # Find new messages sent later than the original message in the same group
                 cursor.execute(
                     """
                     SELECT message_id, timestamp, sender_did, message_data
@@ -352,12 +352,12 @@ async def _send_message(
                 )
                 new_messages = cursor.fetchall()
                 
-                # 收集回复并检查是否所有接收者都已回复
+                # Collect replies and check if all receivers have replied
                 replied_dids = set()
                 for msg_id, msg_ts, msg_sender, msg_data_json in new_messages:
                     if msg_sender in receiver_dids:
                         replied_dids.add(msg_sender)
-                        # 检查是否已经添加过这个回复
+                        # Check if this reply has already been added
                         if not any(r["message_id"] == msg_id for r in replies):
                             try:
                                 msg_data = json.loads(msg_data_json) if msg_data_json else {}
@@ -371,8 +371,8 @@ async def _send_message(
                                 "message_data": msg_data
                             })
                             
-                            # 新增：将该条“回复消息”对当前用户标记为已读
-                            # 当前用户 DID 在本函数中为 sender_did
+                            # New: Mark this "reply message" as read for current user
+                            # Current user DID in this function is sender_did
                             try:
                                 cursor.execute(
                                     "SELECT read_status FROM chat_history WHERE message_id = ?",
@@ -392,30 +392,30 @@ async def _send_message(
                                     )
                                     conn.commit()
                             except Exception:
-                                # 出错不影响主流程
+                                # Error does not affect main flow
                                 pass
                     
-                # 如果所有接收者都已回复，返回结果
+                # If all receivers have replied, return result
                 if len(replied_dids) == len(receiver_dids):
                     base_data["replies"] = replies
                     return {
                         "status": "success",
-                        "message": f"消息已发送，所有 {len(receiver_dids)} 个接收者都已回复。你可以使用send_message回复或发送新消息。",
+                        "message": f"Message sent, all {len(receiver_dids)} receivers have replied. You can use send_message to reply or send new messages.",
                         "data": base_data,
                         "database_path": str(db_path),
                     }
             finally:
                 conn.close()
             
-            # 等待一段时间后继续轮询
+            # Wait for a while before continuing polling
             await asyncio.sleep(poll_interval)
         
-        # 超时情况
+        # Timeout case
         base_data["replies"] = replies
         replied_count = len(set(r["sender_did"] for r in replies))
         return {
             "status": "timeout",
-            "message": f"消息已发送，但等待回复超时。{replied_count}/{len(receiver_dids)} 个接收者已回复。你可以继续回复或发送新消息。",
+            "message": f"Message sent, but waiting for replies timed out. {replied_count}/{len(receiver_dids)} receivers have replied. You can continue to reply or send new messages.",
             "data": base_data,
             "database_path": str(db_path),
         }
@@ -433,10 +433,10 @@ async def _send_message(
     except sqlite3.OperationalError as e:
         return {
             "status": "error",
-            "message": f"数据库操作失败: {str(e)}"
+            "message": f"Database operation failed: {str(e)}"
         }
     except Exception as e:
         return {
             "status": "error",
-            "message": f"发送消息失败: {str(e)}"
+            "message": f"Failed to send message: {str(e)}"
         }

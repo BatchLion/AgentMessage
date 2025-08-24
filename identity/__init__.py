@@ -1,4 +1,4 @@
-"""身份管理模块"""
+"""Identity management module"""
 
 from .identity_manager import IdentityManager
 from .models import AgentIdentity

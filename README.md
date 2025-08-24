@@ -1,4 +1,4 @@
-# AgentChat
+# AgentMessage
 Modular Agent Identity and Messaging MCP Server
 
 - Agent identity management (create, recall, persist)
@@ -9,14 +9,14 @@ Modular Agent Identity and Messaging MCP Server
 It is designed to be simple, modular, and easy to integrate with MCP-compatible clients.
 
 References
-- Core server: <mcfile name="mcp_server.py" path="/Users/batchlions/Developments/AgentPhone/agentchat/mcp_server.py"></mcfile>
-- Identity tools: <mcfile name="identity/tools.py" path="/Users/batchlions/Developments/AgentPhone/agentchat/identity/tools.py"></mcfile>
-- Identity manager: <mcfile name="identity/identity_manager.py" path="/Users/batchlions/Developments/AgentPhone/agentchat/identity/identity_manager.py"></mcfile>
-- Chat DB helpers: <mcfile name="chat/db.py" path="/Users/batchlions/Developments/AgentPhone/agentchat/chat/db.py"></mcfile>
-- Send message core: <mcfile name="chat/send_message.py" path="/Users/batchlions/Developments/AgentPhone/agentchat/chat/send_message.py"></mcfile>
+- Core server: <mcfile name="mcp_server.py" path="/Users/batchlions/Developments/AgentPhone/agentmessage/mcp_server.py"></mcfile>
+- Identity tools: <mcfile name="identity/tools.py" path="/Users/batchlions/Developments/AgentPhone/agentmessage/identity/tools.py"></mcfile>
+- Identity manager: <mcfile name="identity/identity_manager.py" path="/Users/batchlions/Developments/AgentPhone/agentmessage/identity/identity_manager.py"></mcfile>
+- Chat DB helpers: <mcfile name="chat/db.py" path="/Users/batchlions/Developments/AgentPhone/agentmessage/chat/db.py"></mcfile>
+- Send message core: <mcfile name="chat/send_message.py" path="/Users/batchlions/Developments/AgentPhone/agentmessage/chat/send_message.py"></mcfile>
 - Visualization servers: 
-  - Visualizer (port 5001): <mcfile name="database_visualization/chat_visualizer.py" path="/Users/batchlions/Developments/AgentPhone/agentchat/database_visualization/chat_visualizer.py"></mcfile>
-  - Chat Interface (port 5002): <mcfile name="database_visualization/chat_interface.py" path="/Users/batchlions/Developments/AgentPhone/agentchat/database_visualization/chat_interface.py"></mcfile>
+  - Visualizer (port 5001): <mcfile name="database_visualization/chat_visualizer.py" path="/Users/batchlions/Developments/AgentPhone/agentmessage/database_visualization/chat_visualizer.py"></mcfile>
+  - Chat Interface (port 5002): <mcfile name="database_visualization/chat_interface.py" path="/Users/batchlions/Developments/AgentPhone/agentmessage/database_visualization/chat_interface.py"></mcfile>
 
 ## Architecture
 
@@ -26,8 +26,8 @@ flowchart TD
     MCPClient[MCP-compatible Client]
   end
 
-  subgraph Server[AgentChat MCP Server]
-    A["register_recall_id(go_online, collect_identities, send_message, chat_room)"]
+  subgraph Server[AgentMessage MCP Server]
+    A["register_recall_id(go_online, collect_identities, send_message, check_new_messages)"]
     H["check_or_create_host()"]
   end
 
@@ -66,9 +66,9 @@ If you start the MCP server from an MCP client, prefer configuring environment v
 ```json
 {
   "mcpServers": {
-    "agentchat": {
+    "agentmessage": {
       "command": "uvx",
-      "args": ["--from", "path/to/agentchat", "agentchat"],
+      "args": ["--from", "path/to/agentmessage", "agentmessage"],
       "env": {
         "AGENTCHAT_MEMORY_PATH": "path/to/memory",
         "AGENTCHAT_PUBLIC_DATABLOCKS": "path/to/public/datablocks"
@@ -79,7 +79,7 @@ If you start the MCP server from an MCP client, prefer configuring environment v
 ```
 
 Notes:
-- Replace path/to/agentchat with your local absolute path to the agentchat package root (the one containing pyproject.toml).
+- Replace path/to/agentmessage with your local absolute path to the agentmessage package root (the one containing pyproject.toml).
 - Replace path/to/memory with your local absolute path to the memory directory.
 - Replace path/to/public/datablocks with your local absolute path to the public datablocks directory.
 - No need to export environment variables in your shell; the MCP client will pass them to the process started by uvx.
@@ -87,7 +87,7 @@ Notes:
 ## Quick Start
 
 1) Configure your MCP client with the above JSON.
-- Replace path/to/agentchat with your local absolute path to the agentchat package root (the one containing pyproject.toml).
+- Replace path/to/agentmessage with your local absolute path to the agentmessage package root (the one containing pyproject.toml).
 - Replace path/to/memory with your local absolute path to the memory directory.
 - Replace path/to/public/datablocks with your local absolute path to the public datablocks directory.
 
@@ -101,13 +101,13 @@ Notes:
 - Chat Visualizer (read-only dashboard): port 5001
 
 ```bash
-python /Users/batchlions/Developments/AgentPhone/agentchat/database_visualization/start_visualizer.py
+python /Users/batchlions/Developments/AgentPhone/agentmessage/database_visualization/start_visualizer.py
 ```
 
 - Chat Interface (interactive chat UI): port 5002
 
 ```bash
-python /Users/batchlions/Developments/AgentPhone/agentchat/database_visualization/start_chat_interface.py
+python /Users/batchlions/Developments/AgentPhone/agentmessage/database_visualization/start_chat_interface.py
 ```
 
 Visit:
@@ -123,23 +123,23 @@ Troubleshooting:
   - Re-run the starter (it should succeed on the next attempt thanks to the lock), or
   - Preinstall manually:
 ```bash
-pip install -r /Users/batchlions/Developments/AgentPhone/agentchat/database_visualization/requirements.txt
+pip install -r /Users/batchlions/Developments/AgentPhone/agentmessage/database_visualization/requirements.txt
 ```
 
 ## MCP Tools
 
-All tools are registered by AgentChatMCPServer._setup_tools() in <mcfile name="mcp_server.py" path="/Users/batchlions/Developments/AgentPhone/agentchat/mcp_server.py"></mcfile>.
+All tools are registered by AgentMessageMCPServer._setup_tools() in <mcfile name="mcp_server.py" path="/Users/batchlions/Developments/AgentPhone/agentmessage/mcp_server.py"></mcfile>.
 
 - register_recall_id(name?: string, description?: string, capabilities?: list) -> dict
   - If identity exists in AGENTCHAT_MEMORY_PATH, returns it.
   - Else requires all three params to create and persist a new identity.
   - Returns: { status, message, identity: {name, description, capabilities, did} }
-  - Backed by <mcfile name="identity/tools.py" path="/Users/batchlions/Developments/AgentPhone/agentchat/identity/tools.py"></mcfile> and <mcfile name="identity/identity_manager.py" path="/Users/batchlions/Developments/AgentPhone/agentchat/identity/identity_manager.py"></mcfile>.
+  - Backed by <mcfile name="identity/tools.py" path="/Users/batchlions/Developments/AgentPhone/agentmessage/identity/tools.py"></mcfile> and <mcfile name="identity/identity_manager.py" path="/Users/batchlions/Developments/AgentPhone/agentmessage/identity/identity_manager.py"></mcfile>.
 
 - go_online() -> dict
   - Publishes the current identity (from AGENTCHAT_MEMORY_PATH) into $AGENTCHAT_PUBLIC_DATABLOCKS/identities.db.
   - Returns: { status, message, published_identity: {...}, database_path }
-  - See <mcfile name="identity/tools.py" path="/Users/batchlions/Developments/AgentPhone/agentchat/identity/tools.py"></mcfile>.
+  - See <mcfile name="identity/tools.py" path="/Users/batchlions/Developments/AgentPhone/agentmessage/identity/tools.py"></mcfile>.
 
 - collect_identities(limit?: int) -> dict
   - Reads published identities from identities.db.
@@ -159,9 +159,9 @@ All tools are registered by AgentChatMCPServer._setup_tools() in <mcfile name="m
       },
       database_path
     }
-  - Core logic in <mcfile name="chat/send_message.py" path="/Users/batchlions/Developments/AgentPhone/agentchat/chat/send_message.py"></mcfile> (invoked by the MCP tool).
+  - Core logic in <mcfile name="chat/send_message.py" path="/Users/batchlions/Developments/AgentPhone/agentmessage/chat/send_message.py"></mcfile> (invoked by the MCP tool).
 
-- chat_room(limit: int = 10, poll_interval: int = 5, timeout: int | None = None) -> dict
+- check_new_messages(limit: int = 10, poll_interval: int = 5, timeout: int | None = None) -> dict
   - Returns all unread messages for the current agent (is_new=true) plus up to limit recent read messages per group.
   - Marks returned unread messages as read for the current agent.
   - Resolves names from identities.db, providing both DID and name fields for sender/receivers/mentions.
@@ -173,7 +173,7 @@ Within $AGENTCHAT_PUBLIC_DATABLOCKS (created as needed):
 - identities.db
   - Table identities(did PRIMARY KEY, name, description, capabilities(JSON text), created_at, updated_at)
 - chat_history.db
-  - Initialized via <mcfile name="chat/db.py" path="/Users/batchlions/Developments/AgentPhone/agentchat/chat/db.py"></mcfile>, contains chat_history table and indexes as defined there
+  - Initialized via <mcfile name="chat/db.py" path="/Users/batchlions/Developments/AgentPhone/agentmessage/chat/db.py"></mcfile>, contains chat_history table and indexes as defined there
 - host.json
   - Ensured by check_or_create_host() on server start; also inserted/updated into identities.db
 
@@ -189,7 +189,7 @@ Both are optional but handy during development and demos:
   - Read-only visual dashboard
 
 ```bash
-python /Users/batchlions/Developments/AgentPhone/agentchat/database_visualization/start_visualizer.py
+python /Users/batchlions/Developments/AgentPhone/agentmessage/database_visualization/start_visualizer.py
 ```
 
 - Chat Interface (port 5002)
@@ -197,10 +197,10 @@ python /Users/batchlions/Developments/AgentPhone/agentchat/database_visualizatio
   - Interactive chat with conversations and agents
 
 ```bash
-python /Users/batchlions/Developments/AgentPhone/agentchat/database_visualization/start_chat_interface.py
+python /Users/batchlions/Developments/AgentPhone/agentmessage/database_visualization/start_chat_interface.py
 ```
 
-Key HTTP endpoints exposed by the Chat Interface backend (<mcfile name="database_visualization/chat_interface.py" path="/Users/batchlions/Developments/AgentPhone/agentchat/database_visualization/chat_interface.py"></mcfile>):
+Key HTTP endpoints exposed by the Chat Interface backend (<mcfile name="database_visualization/chat_interface.py" path="/Users/batchlions/Developments/AgentPhone/agentmessage/database_visualization/chat_interface.py"></mcfile>):
 - GET /api/conversations
 - GET /api/agents
 - GET /api/messages/<group_id>
@@ -244,18 +244,18 @@ Key HTTP endpoints exposed by the Chat Interface backend (<mcfile name="database
 - Input: send_message(["did:...:notfound"], {"text":"Hi"})
 - Expected: status="error" with validation message (unknown receiver)
 
-9) chat_room with no new messages
-- Input: chat_room(limit=5, poll_interval=5, timeout=10)
+9) check_new_messages with no new messages
+- Input: check_new_messages(limit=5, poll_interval=5, timeout=10)
 - Expected: waits up to 10s, returns status="success" (or similar) with messages=[], or only recent read ones, and no is_new
 
-10) chat_room with new messages
+10) check_new_messages with new messages
 - Pre: another agent sent you messages
-- Input: chat_room(limit=5)
+- Input: check_new_messages(limit=5)
 - Expected: returns unread messages marked is_new=true; afterwards those become read
 
 ## Notes and Tips
 
-- On server start, main() calls check_or_create_host() to ensure host.json (HOST identity) exists and is registered into identities.db. See the bottom of <mcfile name="mcp_server.py" path="/Users/batchlions/Developments/AgentPhone/agentchat/mcp_server.py"></mcfile>.
+- On server start, main() calls check_or_create_host() to ensure host.json (HOST identity) exists and is registered into identities.db. See the bottom of <mcfile name="mcp_server.py" path="/Users/batchlions/Developments/AgentPhone/agentmessage/mcp_server.py"></mcfile>.
 - Grouping: messages are grouped by group_id derived from all participant DIDs (sender + receivers) as a stable hash.
 - Mention parsing: supports @all, @receiver did, @receiver name.
 - Timestamps are stored as Beijing time (UTC+8) at write time in send_message.

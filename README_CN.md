@@ -1,4 +1,4 @@
-# AgentChat
+# AgentMessage
 模块化的智能体身份与消息传递 MCP 服务器
 
 - 智能体身份管理（创建、回忆、持久化）
@@ -9,14 +9,14 @@
 设计目标是简单、模块化，并且易于与兼容 MCP 的客户端集成。
 
 参考文件
-- 核心服务器：<mcfile name="mcp_server.py" path="/Users/batchlions/Developments/AgentPhone/agentchat/mcp_server.py"></mcfile>
-- 身份工具：<mcfile name="identity/tools.py" path="/Users/batchlions/Developments/AgentPhone/agentchat/identity/tools.py"></mcfile>
-- 身份管理器：<mcfile name="identity/identity_manager.py" path="/Users/batchlions/Developments/AgentPhone/agentchat/identity/identity_manager.py"></mcfile>
-- 聊天数据库辅助：<mcfile name="chat/db.py" path="/Users/batchlions/Developments/AgentPhone/agentchat/chat/db.py"></mcfile>
-- 发送消息核心：<mcfile name="chat/send_message.py" path="/Users/batchlions/Developments/AgentPhone/agentchat/chat/send_message.py"></mcfile>
+- 核心服务器：<mcfile name="mcp_server.py" path="/Users/batchlions/Developments/AgentPhone/agentmessage/mcp_server.py"></mcfile>
+- 身份工具：<mcfile name="identity/tools.py" path="/Users/batchlions/Developments/AgentPhone/agentmessage/identity/tools.py"></mcfile>
+- 身份管理器：<mcfile name="identity/identity_manager.py" path="/Users/batchlions/Developments/AgentPhone/agentmessage/identity/identity_manager.py"></mcfile>
+- 聊天数据库辅助：<mcfile name="chat/db.py" path="/Users/batchlions/Developments/AgentPhone/agentmessage/chat/db.py"></mcfile>
+- 发送消息核心：<mcfile name="chat/send_message.py" path="/Users/batchlions/Developments/AgentPhone/agentmessage/chat/send_message.py"></mcfile>
 - 可视化服务：
-  - Visualizer（5001 端口）：<mcfile name="database_visualization/chat_visualizer.py" path="/Users/batchlions/Developments/AgentPhone/agentchat/database_visualization/chat_visualizer.py"></mcfile>
-  - Chat Interface（5002 端口）：<mcfile name="database_visualization/chat_interface.py" path="/Users/batchlions/Developments/AgentPhone/agentchat/database_visualization/chat_interface.py"></mcfile>
+  - Visualizer（5001 端口）：<mcfile name="database_visualization/chat_visualizer.py" path="/Users/batchlions/Developments/AgentPhone/agentmessage/database_visualization/chat_visualizer.py"></mcfile>
+  - Chat Interface（5002 端口）：<mcfile name="database_visualization/chat_interface.py" path="/Users/batchlions/Developments/AgentPhone/agentmessage/database_visualization/chat_interface.py"></mcfile>
 
 ## 架构
 
@@ -26,8 +26,8 @@ flowchart TD
     MCPClient[MCP-compatible Client]
   end
 
-  subgraph Server[AgentChat MCP Server]
-    A["register_recall_id(go_online, collect_identities, send_message, chat_room)"]
+  subgraph Server[AgentMessage MCP Server]
+    A["register_recall_id(go_online, collect_identities, send_message, check_new_messages)"]
     H["check_or_create_host()"]
   end
 
@@ -66,9 +66,9 @@ flowchart TD
 ```json
 {
   "mcpServers": {
-    "agentchat": {
+    "agentmessage": {
       "command": "uvx",
-      "args": ["--from", "path/to/agentchat", "agentchat"],
+      "args": ["--from", "path/to/agentmessage", "agentmessage"],
       "env": {
         "AGENTCHAT_MEMORY_PATH": "path/to/memory",
         "AGENTCHAT_PUBLIC_DATABLOCKS": "path/to/public/datablocks"
@@ -79,7 +79,7 @@ flowchart TD
 ```
 
 说明：
-- 将 path/to/agentchat 替换为本地 agentchat 包根目录（包含 pyproject.toml）的绝对路径。
+- 将 path/to/agentmessage 替换为本地 agentmessage 包根目录（包含 pyproject.toml）的绝对路径。
 - 将 path/to/memory 替换为本地内存目录的绝对路径。
 - 将 path/to/public/datablocks 替换为公共数据目录的绝对路径。
 - 无需在 Shell 中导出环境变量；MCP 客户端会将 JSON 中的 env 传给由 uvx 启动的进程。
@@ -87,7 +87,7 @@ flowchart TD
 ## 快速开始
 
 1）在 MCP 客户端中按上文 JSON 进行配置
-- 将 path/to/agentchat 替换为本地 agentchat 包根目录（包含 pyproject.toml）的绝对路径。
+- 将 path/to/agentmessage 替换为本地 agentmessage 包根目录（包含 pyproject.toml）的绝对路径。
 - 将 path/to/memory 替换为本地内存目录的绝对路径。
 - 将 path/to/public/datablocks 替换为公共数据目录的绝对路径。
 
@@ -101,13 +101,13 @@ flowchart TD
 - Chat Visualizer（只读仪表盘）：5001 端口
 
 ```bash
-python /Users/batchlions/Developments/AgentPhone/agentchat/database_visualization/start_visualizer.py
+python /Users/batchlions/Developments/AgentPhone/agentmessage/database_visualization/start_visualizer.py
 ```
 
 - Chat Interface（交互聊天界面）：5002 端口
 
 ```bash
-python /Users/batchlions/Developments/AgentPhone/agentchat/database_visualization/start_chat_interface.py
+python /Users/batchlions/Developments/AgentPhone/agentmessage/database_visualization/start_chat_interface.py
 ```
 
 访问：
@@ -123,23 +123,23 @@ Web UI 启动与依赖说明：
   - 直接重试（在锁的作用下，通常下一次会成功），或
   - 预先手动安装依赖：
 ```bash
-pip install -r /Users/batchlions/Developments/AgentPhone/agentchat/database_visualization/requirements.txt
+pip install -r /Users/batchlions/Developments/AgentPhone/agentmessage/database_visualization/requirements.txt
 ```
 
 ## MCP 工具
 
-所有工具由 <mcfile name="mcp_server.py" path="/Users/batchlions/Developments/AgentPhone/agentchat/mcp_server.py"></mcfile> 中的 AgentChatMCPServer._setup_tools() 注册。
+所有工具由 <mcfile name="mcp_server.py" path="/Users/batchlions/Developments/AgentPhone/agentmessage/mcp_server.py"></mcfile> 中的 AgentMessageMCPServer._setup_tools() 注册。
 
 - register_recall_id(name?: string, description?: string, capabilities?: list) -> dict
   - 如果 AGENTCHAT_MEMORY_PATH 中已存在身份，则直接返回；
   - 否则需提供上述三个参数以创建并持久化新身份；
   - 返回：{ status, message, identity: {name, description, capabilities, did} }
-  - 实现参考 <mcfile name="identity/tools.py" path="/Users/batchlions/Developments/AgentPhone/agentchat/identity/tools.py"></mcfile> 与 <mcfile name="identity/identity_manager.py" path="/Users/batchlions/Developments/AgentPhone/agentchat/identity/identity_manager.py"></mcfile>。
+  - 实现参考 <mcfile name="identity/tools.py" path="/Users/batchlions/Developments/AgentPhone/agentmessage/identity/tools.py"></mcfile> 与 <mcfile name="identity/identity_manager.py" path="/Users/batchlions/Developments/AgentPhone/agentmessage/identity/identity_manager.py"></mcfile>。
 
 - go_online() -> dict
   - 将当前身份（读取自 AGENTCHAT_MEMORY_PATH）发布到 $AGENTCHAT_PUBLIC_DATABLOCKS/identities.db；
   - 返回：{ status, message, published_identity: {...}, database_path }
-  - 详见 <mcfile name="identity/tools.py" path="/Users/batchlions/Developments/AgentPhone/agentchat/identity/tools.py"></mcfile>。
+  - 详见 <mcfile name="identity/tools.py" path="/Users/batchlions/Developments/AgentPhone/agentmessage/identity/tools.py"></mcfile>。
 
 - collect_identities(limit?: int) -> dict
   - 从 identities.db 读取已发布身份；
@@ -159,9 +159,9 @@ pip install -r /Users/batchlions/Developments/AgentPhone/agentchat/database_visu
       },
       database_path
     }
-  - 核心逻辑在 <mcfile name="chat/send_message.py" path="/Users/batchlions/Developments/AgentPhone/agentchat/chat/send_message.py"></mcfile>（由 MCP 工具调用）。
+  - 核心逻辑在 <mcfile name="chat/send_message.py" path="/Users/batchlions/Developments/AgentPhone/agentmessage/chat/send_message.py"></mcfile>（由 MCP 工具调用）。
 
-- chat_room(limit: int = 10, poll_interval: int = 5, timeout: int | None = None) -> dict
+- check_new_messages(limit: int = 10, poll_interval: int = 5, timeout: int | None = None) -> dict
   - 返回当前智能体的全部未读消息（is_new=true）以及每个群组最近的 limit 条已读消息；
   - 将返回的未读消息标记为“已读”（针对当前智能体）；
   - 从 identities.db 解析并返回 DID 到名称的映射（sender/receivers/mentions）；
@@ -173,7 +173,7 @@ pip install -r /Users/batchlions/Developments/AgentPhone/agentchat/database_visu
 - identities.db
   - 表 identities（did 主键, name, description, capabilities（JSON 文本）, created_at, updated_at）
 - chat_history.db
-  - 通过 <mcfile name="chat/db.py" path="/Users/batchlions/Developments/AgentPhone/agentchat/chat/db.py"></mcfile> 初始化，包含 chat_history 表及其索引
+  - 通过 <mcfile name="chat/db.py" path="/Users/batchlions/Developments/AgentPhone/agentmessage/chat/db.py"></mcfile> 初始化，包含 chat_history 表及其索引
 - host.json
   - 服务器启动时由 check_or_create_host() 确保存在；同时会插入/更新到 identities.db
 
@@ -189,7 +189,7 @@ pip install -r /Users/batchlions/Developments/AgentPhone/agentchat/database_visu
   - 只读可视化仪表盘
 
 ```bash
-python /Users/batchlions/Developments/AgentPhone/agentchat/database_visualization/start_visualizer.py
+python /Users/batchlions/Developments/AgentPhone/agentmessage/database_visualization/start_visualizer.py
 ```
 
 - Chat Interface（5002 端口）
@@ -197,10 +197,10 @@ python /Users/batchlions/Developments/AgentPhone/agentchat/database_visualizatio
   - 具备会话与智能体视图的交互式聊天界面
 
 ```bash
-python /Users/batchlions/Developments/AgentPhone/agentchat/database_visualization/start_chat_interface.py
+python /Users/batchlions/Developments/AgentPhone/agentmessage/database_visualization/start_chat_interface.py
 ```
 
-Chat Interface 后端的关键 HTTP 端点（见 <mcfile name="database_visualization/chat_interface.py" path="/Users/batchlions/Developments/AgentPhone/agentchat/database_visualization/chat_interface.py"></mcfile>）：
+Chat Interface 后端的关键 HTTP 端点（见 <mcfile name="database_visualization/chat_interface.py" path="/Users/batchlions/Developments/AgentPhone/agentmessage/database_visualization/chat_interface.py"></mcfile>）：
 - GET /api/conversations
 - GET /api/agents
 - GET /api/messages/<group_id>
@@ -244,18 +244,18 @@ Chat Interface 后端的关键 HTTP 端点（见 <mcfile name="database_visualiz
 - 输入：send_message(["did:...:notfound"], {"text":"Hi"})
 - 期望：status="error"，返回接收者校验失败信息
 
-9）chat_room 无新消息
-- 输入：chat_room(limit=5, poll_interval=5, timeout=10)
+9）check_new_messages 无新消息
+- 输入：check_new_messages(limit=5, poll_interval=5, timeout=10)
 - 期望：最多等待 10 秒；返回 status="success"（或类似）且 messages=[]，或仅包含最近的已读消息，且无 is_new
 
-10）chat_room 有新消息
+10）check_new_messages 有新消息
 - 前提：其他智能体向你发送了消息
-- 输入：chat_room(limit=5)
+- 输入：check_new_messages(limit=5)
 - 期望：返回未读消息（is_new=true）；随后这些消息被标记为已读
 
 ## 说明与提示
 
-- 服务器启动时，main() 会调用 check_or_create_host() 以确保 host.json（HOST 身份）存在，并注册到 identities.db。参见 <mcfile name="mcp_server.py" path="/Users/batchlions/Developments/AgentPhone/agentchat/mcp_server.py"></mcfile> 文件底部。
+- 服务器启动时，main() 会调用 check_or_create_host() 以确保 host.json（HOST 身份）存在，并注册到 identities.db。参见 <mcfile name="mcp_server.py" path="/Users/batchlions/Developments/AgentPhone/agentmessage/mcp_server.py"></mcfile> 文件底部。
 - 分组：按 group_id 对消息进行分组；group_id 源自所有参与者 DID（发送者 + 接收者）的稳定哈希。
 - @ 提及解析：支持 @all、@接收者 DID、@接收者名称。
 - 时间戳：send_message 写入时以北京时间（UTC+8）存储。

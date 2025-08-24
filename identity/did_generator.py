@@ -1,4 +1,7 @@
-"""DID生成器"""
+"""
+DID (Decentralized Identifier) generator module
+Used to generate and validate DID identifiers for AgentMessage
+"""
 
 import uuid
 import hashlib
@@ -6,28 +9,34 @@ from datetime import datetime
 from typing import Optional
 
 class DIDGenerator:
-    """DID生成器 - 生成唯一的去中心化标识符"""
+    """
+    DID generator class
+    Used to generate and validate DID identifiers that comply with AgentMessage specifications
+    """
     
-    def __init__(self, method: str = "agentchat"):
+    def __init__(self, method: str = "agentmessage"):
         self.method = method
     
     def generate_did(self, agent_name: str, endpoint: str = None) -> str:
-        """生成DID
+        """Generate DID
         
-        格式: did:agentchat:{network}:{identifier}
+        format: did:agentmessage:{network}:{identifier}
         """
-        # 生成唯一标识符
+        # Generate unique identifier
         timestamp = datetime.utcnow().isoformat()
         unique_string = f"{agent_name}:{endpoint}:{timestamp}:{uuid.uuid4()}"
         
-        # 使用SHA-256生成哈希
+        # Generate hash using SHA-256
         hash_object = hashlib.sha256(unique_string.encode())
         identifier = hash_object.hexdigest()[:32]  # 取前32位
         
         return f"did:{self.method}:local:{identifier}"
     
     def validate_did(self, did: str) -> bool:
-        """验证DID格式"""
+        """Validate DID format
+        
+        format: did:agentmessage:{network}:{identifier}
+        """
         parts = did.split(':')
         return (
             len(parts) == 4 and

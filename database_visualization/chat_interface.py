@@ -3,7 +3,6 @@
 Modern Chat Interface UI
 A Flask web application for real-time chat with agents
 """
-# 文件顶部的 imports 区域
 import os
 import json
 import sqlite3
@@ -34,13 +33,11 @@ from chat.send_message import _send_message
 from identity.identity_manager import IdentityManager
 from identity.models import AgentIdentity
 
-# 顶部应用初始化区域
 app = Flask(__name__)
 app.config['SECRET_KEY'] = 'chat_interface_secret_key'
 socketio = SocketIO(app, cors_allowed_origins="*", async_mode='eventlet', ping_interval=25, ping_timeout=60)
 
 # Database paths
-# 全局常量区域，数据库路径之后，添加内存映射
 DB_PATH = data_dir / "chat_history.db"
 IDENTITIES_DB_PATH = data_dir / "identities.db"
 HOST_JSON_PATH = data_dir / "host.json"
@@ -48,7 +45,7 @@ HOST_JSON_PATH = data_dir / "host.json"
 NEW_CONVERSATION_PARTICIPANTS = {}
 NEW_CONV_LOCK = threading.Lock()
 
-# 新增：数据库新消息监控
+# New feature: Database new message monitoring
 class ChatMonitor:
     def __init__(self):
         self.last_check = datetime.now()
@@ -61,7 +58,7 @@ class ChatMonitor:
             if self.running:
                 return
             self.running = True
-            # 使用 Flask-SocketIO 的后台任务，避免与 eventlet 冲突
+            # Use Flask-SocketIO background task to avoid conflicts with eventlet
             self.thread = socketio.start_background_task(self._monitor_loop)
             self.thread.start()
 
@@ -80,7 +77,7 @@ class ChatMonitor:
                             'receiver_dids': msg.get('receiver_dids', []),
                             'client_msg_id': (msg.get('message_data') or {}).get('client_msg_id')
                         })
-                    # 仅在拿到新消息时推进检查点：推进到“本次处理的最大时间戳”
+                    # Advance checkpoint only when new messages are found: advance to "maximum timestamp processed in this batch"
                     try:
                         latest_ts_str = max(
                             m.get('timestamp') for m in new_messages if m.get('timestamp')
@@ -88,7 +85,7 @@ class ChatMonitor:
                         self.last_check = datetime.strptime(latest_ts_str, "%Y-%m-%d %H:%M:%S")
                     except Exception as _e:
                         pass
-                # 非阻塞 sleep，兼容 eventlet
+                # Non-blocking sleep, compatible with eventlet
                 socketio.sleep(2)
             except Exception as e:
                 print(f"Monitor error: {e}")
@@ -100,7 +97,7 @@ class ChatMonitor:
         conn = sqlite3.connect(DB_PATH)
         try:
             cursor = conn.cursor()
-            # 向前回溯 1 秒 + >=，配合前端去重，避免同秒/迟到写入漏读
+            # Look back 1 second and use >= to avoid missing same-second/late writes; works with frontend deduplication
             safe_check = (self.last_check - timedelta(seconds=1)).strftime("%Y-%m-%d %H:%M:%S")
             cursor.execute("""
                 SELECT message_id, timestamp, sender_did, receiver_dids, 
@@ -130,7 +127,7 @@ class ChatMonitor:
         finally:
             conn.close()
 
-# 在模块加载时启动监控线程（确保仅启动一次）
+# Start monitoring thread when loading the module (ensure starting only once)
 _monitor_instance = ChatMonitor()
 _monitor_instance.start_monitoring()
 
@@ -190,11 +187,11 @@ def get_conversation_participants(group_id):
     if not DB_PATH.exists():
         return []
     
-    # 新增：优先从内存映射读取参与者（适用于新建且尚无消息的会话）
+    # Added: Prefer reading participants from memory map (for newly created conversations without messages yet)
     with NEW_CONV_LOCK:
         if group_id in NEW_CONVERSATION_PARTICIPANTS:
             participants = list(NEW_CONVERSATION_PARTICIPANTS[group_id])
-            # 移除 HOST DID（HOST 不给自己发）
+            # Remove HOST DID (HOST does not send to itself)
             host_did = get_host_did()
             if host_did and host_did in participants:
                 participants = [p for p in participants if p != host_did]
@@ -448,7 +445,7 @@ def handle_send_message(data):
     try:
         group_id = data.get('group_id')
         message_text = data.get('message_text', '').strip()
-        client_msg_id = data.get('client_msg_id')  # 新增：从前端透传的客户端消息ID
+        client_msg_id = data.get('client_msg_id')  # Added: client message ID passed from frontend
         
         if not group_id or not message_text:
             emit('message_error', {'error': 'Missing group_id or message_text'})
@@ -472,7 +469,7 @@ def handle_send_message(data):
             'timestamp': datetime.now().isoformat()
         }
         if client_msg_id:
-            message_data['client_msg_id'] = client_msg_id  # 新增：写入 message_data，便于落库与后续轮询关联
+            message_data['client_msg_id'] = client_msg_id  # Added: write into message_data for persistence and later polling association
         
         # Send message asynchronously
         def send_async():
@@ -500,7 +497,7 @@ def handle_send_message(data):
                         'message_data': message_data,
                         'timestamp': result['data']['timestamp'],
                         'receiver_dids': receiver_dids,
-                        'client_msg_id': client_msg_id  # 新增：顶层也携带，便于前端直接匹配
+                        'client_msg_id': client_msg_id  # Added: also carry at top-level for direct frontend matching
                     })
                     
                     socketio.emit('message_success', {
@@ -526,7 +523,7 @@ def handle_send_message(data):
                     'message_data': message_data,
                     'timestamp': datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
                     'receiver_dids': receiver_dids,
-                    'client_msg_id': client_msg_id  # 新增：超时分支的占位广播也携带，用于后续替换
+                    'client_msg_id': client_msg_id  # Added: also carry in timeout branch placeholder broadcast for later replacement
                 })
             except Exception as e:
                 socketio.emit('message_error', {
@@ -550,7 +547,7 @@ def api_conversation_participants(group_id):
     return jsonify(participants)
 
 def _compute_group_id_with_host(receiver_dids: list[str]) -> str:
-    # 使用与 chat/send_message.py 同样的 group_id 计算：sha256(sorted([HOST]+receivers)) 前16位 + 'grp_'
+    # Use the same group_id computation as chat/send_message.py: first 16 of sha256(sorted([HOST]+receivers)) plus 'grp_'
     host_did = get_host_did()
     if not host_did:
         return None
@@ -611,8 +608,18 @@ def api_host_info():
 @app.route('/api/create-conversation', methods=['POST'])
 def api_create_conversation():
     """
-    智能创建会话：若已有HOST+选中agents的会话，则返回该会话；否则创建新的空白会话（仅内存）。
-    请求体: { "agent_dids": [did1, did2, ...], "theme": "optional" }
+    Intelligent conversation creation logic
+    Check for existing conversations with HOST and selected agents
+    Create a new blank in-memory conversation if none found
+    
+    Request body parameters:
+    - agent_dids: List of agent DIDs
+    - theme: Optional conversation theme
+    
+    Error handling for missing agent_dids or HOST DID
+    Logic for removing the HOST DID from agent_dids
+    Find existing conversations, map DIDs to names for display
+    Handle the creation of new in-memory conversations with a group_id and NEW_CONVERSATION_PARTICIPANTS lock
     """
     try:
         data = request.get_json(silent=True) or {}
@@ -625,10 +632,10 @@ def api_create_conversation():
         if not host_did:
             return jsonify({"error": "HOST DID not found. Please check ../data/host.json"}), 500
 
-        # 去掉可能传入的 HOST DID
+        # Remove HOST DID from agent_dids if present
         agent_dids = [d for d in agent_dids if d != host_did]
 
-        # 先查是否已存在会话
+        # First check for existing conversation
         existing_conv = find_existing_conversation(agent_dids)
         agent_names_map = get_agent_names()
 
@@ -661,7 +668,7 @@ def api_create_conversation():
                 "action": "opened_existing"
             })
 
-        # 不存在则创建新的内存会话（等待第一条消息入库）
+        # Create new in-memory conversation if none found
         group_id = _compute_group_id_with_host(agent_dids)
         if not group_id:
             return jsonify({"error": "Failed to compute group_id"}), 500

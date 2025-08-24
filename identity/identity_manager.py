@@ -1,4 +1,4 @@
-"""身份管理器"""
+"""Identity manager"""
 
 import os
 import json
@@ -8,27 +8,27 @@ from .models import AgentIdentity
 from .did_generator import DIDGenerator
 
 class IdentityManager:
-    """身份管理器"""
+    """Identity manager"""
     
     def __init__(self):
         self.did_generator = DIDGenerator()
         self.memory_path = self._get_memory_path()
         self.identity_file = self.memory_path / "identity.json"
         
-        # 确保目录存在
+        # Ensure directory exists
         self.memory_path.mkdir(parents=True, exist_ok=True)
     
     def _get_memory_path(self) -> Path:
-        """获取内存路径"""
+        """Get memory path"""
         memory_path = os.getenv('AGENTCHAT_MEMORY_PATH')
         if memory_path:
             return Path(memory_path)
         else:
-            # 默认路径
-            return Path.home() / ".agentchat" / "memory"
+            # Default path
+            return Path.home() / ".agentmessage" / "memory"
     
     def load_identity(self) -> Optional[AgentIdentity]:
-        """加载身份信息"""
+        """Load identity information"""
         if not self.identity_file.exists():
             return None
         
@@ -37,21 +37,21 @@ class IdentityManager:
                 data = json.load(f)
             return AgentIdentity.from_dict(data)
         except Exception as e:
-            print(f"加载身份信息失败: {e}")
+            print(f"Failed to load identity information: {e}")
             return None
     
     def save_identity(self, identity: AgentIdentity) -> bool:
-        """保存身份信息"""
+        """Save identity information"""
         try:
             with open(self.identity_file, 'w', encoding='utf-8') as f:
                 json.dump(identity.to_dict(), f, indent=2, ensure_ascii=False)
             return True
         except Exception as e:
-            print(f"保存身份信息失败: {e}")
+            print(f"Failed to save identity information: {e}")
             return False
     
     def create_identity(self, name: str, description: str, capabilities: list) -> AgentIdentity:
-        """创建新的身份信息"""
+        """Create new identity information"""
         did = self.did_generator.generate_did(name)
         identity = AgentIdentity(
             name=name,
@@ -62,5 +62,5 @@ class IdentityManager:
         return identity
     
     def has_identity(self) -> bool:
-        """检查是否已有身份信息"""
+        """Check if identity information already exists"""
         return self.identity_file.exists() and self.load_identity() is not None

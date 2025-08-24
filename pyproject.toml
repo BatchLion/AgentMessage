@@ -3,13 +3,13 @@ requires = ["hatchling"]
 build-backend = "hatchling.build"
 
 [project]
-name = "agentchat"
-version = "2.0.0"
-description = "AgentChat - 模块化智能体身份管理和通信MCP服务"
+name = "agentmessage"
+version = "0.1.0"
+description = "A multi-agent communication system based on MCP protocol"
 readme = "README.md"
 requires-python = ">=3.10"
 authors = [
-    {name = "AgentChat Team"},
+    {name = "AgentMessage Team"},
 ]
 classifiers = [
     "Development Status :: 4 - Beta",
@@ -35,7 +35,7 @@ dev = [
 ]
 
 [project.scripts]
-agentchat = "mcp_server:main"
+agentmessage = "mcp_server:main"
 
 [tool.hatch.build.targets.wheel]
 packages = ["."]

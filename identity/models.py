@@ -1,4 +1,4 @@
-"""身份数据模型"""
+"""Identity data models"""
 
 import json
 from datetime import datetime
@@ -6,17 +6,17 @@ from typing import List, Optional
 from pydantic import BaseModel, Field
 
 class AgentIdentity(BaseModel):
-    """智能体身份信息模型"""
+    """Agent identity information model"""
     
-    name: str = Field(..., description="智能体名称")
-    description: str = Field(..., description="智能体描述")
-    capabilities: List[str] = Field(..., description="智能体能力列表")
-    did: str = Field(..., description="去中心化标识符")
-    created_at: datetime = Field(default_factory=datetime.utcnow, description="创建时间")
-    updated_at: datetime = Field(default_factory=datetime.utcnow, description="更新时间")
+    name: str = Field(..., description="Agent name")
+    description: str = Field(..., description="Agent description")
+    capabilities: List[str] = Field(..., description="Agent capabilities list")
+    did: str = Field(..., description="Decentralized identifier")
+    created_at: datetime = Field(default_factory=datetime.utcnow, description="Creation time")
+    updated_at: datetime = Field(default_factory=datetime.utcnow, description="Update time")
     
     def to_dict(self) -> dict:
-        """转换为字典格式"""
+        """Convert to dictionary format"""
         return {
             "name": self.name,
             "description": self.description,
@@ -28,7 +28,7 @@ class AgentIdentity(BaseModel):
     
     @classmethod
     def from_dict(cls, data: dict) -> 'AgentIdentity':
-        """从字典创建实例"""
+        """Create instance from dictionary"""
         if 'created_at' in data and isinstance(data['created_at'], str):
             data['created_at'] = datetime.fromisoformat(data['created_at'].replace('Z', '+00:00'))
         if 'updated_at' in data and isinstance(data['updated_at'], str):

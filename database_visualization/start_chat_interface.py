@@ -30,7 +30,7 @@ def ensure_pip():
 @contextmanager
 def install_lock(timeout: int = 60):
     """Serialize pip installs to avoid concurrent uninstall/upgrade races."""
-    lock_path = Path(tempfile.gettempdir()) / "agentchat_deps.lock"
+    lock_path = Path(tempfile.gettempdir()) / "agentmessage_deps.lock"
     with open(lock_path, "w") as f:
         start = time.time()
         while True:

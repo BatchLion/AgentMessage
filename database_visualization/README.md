@@ -1,6 +1,6 @@
 # Database Visualization Tools
 
-This directory contains comprehensive tools for visualizing and interacting with the AgentChat database in real-time.
+This directory contains comprehensive tools for visualizing and interacting with the AgentMessage database in real-time.
 
 ## 🎯 What's Included
 
