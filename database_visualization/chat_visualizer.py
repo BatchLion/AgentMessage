@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """
-Real-time Chat History Visualizer
-A Flask web application with WebSocket support for visualizing chat history
+Real-time Message History Visualizer
+A Flask web application with WebSocket support for visualizing message history
 """
 import os
 import json
@@ -15,15 +15,15 @@ import threading
 import time
 
 app = Flask(__name__)
-app.config['SECRET_KEY'] = 'chat_visualizer_secret_key'
+app.config['SECRET_KEY'] = 'message_visualizer_secret_key'
 socketio = SocketIO(app, cors_allowed_origins="*")
 
 # Database path
 public_env = os.getenv("AGENTMESSAGE_PUBLIC_DATABLOCKS")
 data_dir = Path(public_env) if public_env else (Path(__file__).parent.parent / "data")
-DB_PATH = data_dir / "chat_history.db"
+DB_PATH = data_dir / "message_history.db"
 
-class ChatMonitor:
+class MessageMonitor:
     def __init__(self):
         self.last_check = datetime.now()
         self.running = False
@@ -59,7 +59,7 @@ class ChatMonitor:
             cursor.execute("""
                 SELECT message_id, timestamp, sender_did, receiver_dids, 
                        group_id, message_data, mention_dids, read_status
-                FROM chat_history 
+                FROM message_history 
                 WHERE datetime(timestamp) > datetime(?)
                 ORDER BY timestamp DESC
             """, (self.last_check.strftime("%Y-%m-%d %H:%M:%S"),))
@@ -91,10 +91,10 @@ class ChatMonitor:
         finally:
             conn.close()
 
-monitor = ChatMonitor()
+monitor = MessageMonitor()
 
-def get_chat_data(limit=50, group_id=None, sender_did=None):
-    """Get chat messages with optional filtering"""
+def get_message_data(limit=50, group_id=None, sender_did=None):
+    """Get message messages with optional filtering"""
     if not DB_PATH.exists():
         return []
     
@@ -105,7 +105,7 @@ def get_chat_data(limit=50, group_id=None, sender_did=None):
         query = """
             SELECT message_id, timestamp, sender_did, receiver_dids, 
                    group_id, message_data, mention_dids, read_status
-            FROM chat_history 
+            FROM message_history 
         """
         params = []
         
@@ -153,7 +153,7 @@ def get_chat_data(limit=50, group_id=None, sender_did=None):
         conn.close()
 
 def get_statistics():
-    """Get chat statistics"""
+    """Get message statistics"""
     if not DB_PATH.exists():
         return {}
     
@@ -162,21 +162,21 @@ def get_statistics():
         cursor = conn.cursor()
         
         # Total messages
-        cursor.execute("SELECT COUNT(*) FROM chat_history")
+        cursor.execute("SELECT COUNT(*) FROM message_history")
         total_messages = cursor.fetchone()[0]
         
         # Unique senders
-        cursor.execute("SELECT COUNT(DISTINCT sender_did) FROM chat_history")
+        cursor.execute("SELECT COUNT(DISTINCT sender_did) FROM message_history")
         unique_senders = cursor.fetchone()[0]
         
         # Unique groups
-        cursor.execute("SELECT COUNT(DISTINCT group_id) FROM chat_history")
+        cursor.execute("SELECT COUNT(DISTINCT group_id) FROM message_history")
         unique_groups = cursor.fetchone()[0]
         
         # Messages per sender
         cursor.execute("""
             SELECT sender_did, COUNT(*) as count 
-            FROM chat_history 
+            FROM message_history 
             GROUP BY sender_did 
             ORDER BY count DESC
         """)
@@ -185,7 +185,7 @@ def get_statistics():
         # Messages per group
         cursor.execute("""
             SELECT group_id, COUNT(*) as count 
-            FROM chat_history 
+            FROM message_history 
             GROUP BY group_id 
             ORDER BY count DESC
         """)
@@ -194,7 +194,7 @@ def get_statistics():
         # Messages per day (last 7 days)
         cursor.execute("""
             SELECT DATE(timestamp) as date, COUNT(*) as count
-            FROM chat_history 
+            FROM message_history 
             WHERE DATE(timestamp) >= DATE('now', '-7 days')
             GROUP BY DATE(timestamp)
             ORDER BY date DESC
@@ -215,7 +215,7 @@ def get_statistics():
 @app.route('/')
 def index():
     """Main dashboard page"""
-    return render_template('chat_dashboard.html')
+    return render_template('message_dashboard.html')
 
 @app.route('/api/messages')
 def api_messages():
@@ -224,7 +224,7 @@ def api_messages():
     group_id = request.args.get('group_id')
     sender_did = request.args.get('sender_did')
     
-    messages = get_chat_data(limit, group_id, sender_did)
+    messages = get_message_data(limit, group_id, sender_did)
     return jsonify(messages)
 
 @app.route('/api/statistics')
@@ -237,7 +237,7 @@ def api_statistics():
 def handle_connect():
     """Handle client connection"""
     print('Client connected')
-    emit('connected', {'data': 'Connected to chat visualizer'})
+    emit('connected', {'data': 'Connected to message visualizer'})
 
 @socketio.on('disconnect')
 def handle_disconnect():
@@ -251,7 +251,7 @@ def handle_request_messages(data):
     group_id = data.get('group_id')
     sender_did = data.get('sender_did')
     
-    messages = get_chat_data(limit, group_id, sender_did)
+    messages = get_message_data(limit, group_id, sender_did)
     emit('messages_response', {'messages': messages})
 
 if __name__ == '__main__':

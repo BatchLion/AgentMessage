@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """
-Modern Chat Interface UI
-A Flask web application for real-time chat with agents
+Modern Message Interface UI
+A Flask web application for real-time message with agents
 """
 import os
 import json
@@ -18,7 +18,7 @@ import eventlet
 eventlet.monkey_patch()
 import hashlib
 
-# Set the required environment variable for the chat system
+# Set the required environment variable for the message system
 # Resolve data directory from env, fallback to repo data dir
 public_env = os.getenv('AGENTMESSAGE_PUBLIC_DATABLOCKS')
 if public_env:
@@ -27,18 +27,18 @@ else:
     data_dir = Path(__file__).parent.parent / "data"
     os.environ['AGENTMESSAGE_PUBLIC_DATABLOCKS'] = str(data_dir.absolute())
 
-# Add parent directory to path to import chat module
+# Add parent directory to path to import message module
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
-from chat.send_message import _send_message
+from message.send_message import _send_message
 from identity.identity_manager import IdentityManager
 from identity.models import AgentIdentity
 
 app = Flask(__name__)
-app.config['SECRET_KEY'] = 'chat_interface_secret_key'
+app.config['SECRET_KEY'] = 'message_interface_secret_key'
 socketio = SocketIO(app, cors_allowed_origins="*", async_mode='eventlet', ping_interval=25, ping_timeout=60)
 
 # Database paths
-DB_PATH = data_dir / "chat_history.db"
+DB_PATH = data_dir / "message_history.db"
 IDENTITIES_DB_PATH = data_dir / "identities.db"
 HOST_JSON_PATH = data_dir / "host.json"
 
@@ -46,7 +46,7 @@ NEW_CONVERSATION_PARTICIPANTS = {}
 NEW_CONV_LOCK = threading.Lock()
 
 # New feature: Database new message monitoring
-class ChatMonitor:
+class MessageMonitor:
     def __init__(self):
         self.last_check = datetime.now()
         self.running = False
@@ -102,7 +102,7 @@ class ChatMonitor:
             cursor.execute("""
                 SELECT message_id, timestamp, sender_did, receiver_dids, 
                        group_id, message_data, mention_dids, read_status
-                FROM chat_history 
+                FROM message_history 
                 WHERE datetime(timestamp) >= datetime(?)
                 ORDER BY datetime(timestamp) ASC
             """, (safe_check,))
@@ -128,7 +128,7 @@ class ChatMonitor:
             conn.close()
 
 # Start monitoring thread when loading the module (ensure starting only once)
-_monitor_instance = ChatMonitor()
+_monitor_instance = MessageMonitor()
 _monitor_instance.start_monitoring()
 
 def ensure_host_identity():
@@ -153,7 +153,7 @@ def ensure_host_identity():
         host_identity = AgentIdentity(
             name=host_data.get('name', 'HOST'),
             description=host_data.get('description', 'The user of the MCP service and the host of the agents.'),
-            capabilities=['chat', 'message_sending'],
+            capabilities=['message', 'message_sending'],
             did=host_data.get('did')
         )
         
@@ -202,7 +202,7 @@ def get_conversation_participants(group_id):
         cursor = conn.cursor()
         cursor.execute("""
             SELECT DISTINCT sender_did, receiver_dids
-            FROM chat_history 
+            FROM message_history 
             WHERE group_id = ?
         """, (group_id,))
         
@@ -259,7 +259,7 @@ def get_conversations():
                 COUNT(*) as message_count,
                 MAX(timestamp) as last_message,
                 GROUP_CONCAT(DISTINCT sender_did) as participants
-            FROM chat_history 
+            FROM message_history 
             GROUP BY group_id 
             ORDER BY MAX(datetime(timestamp)) DESC
         """)
@@ -315,7 +315,7 @@ def get_agents():
                 sender_did,
                 COUNT(*) as message_count,
                 MAX(timestamp) as last_active
-            FROM chat_history 
+            FROM message_history 
             GROUP BY sender_did 
             ORDER BY MAX(datetime(timestamp)) DESC
         """)
@@ -358,7 +358,7 @@ def get_group_messages(group_id, limit=50):
         cursor.execute("""
             SELECT message_id, timestamp, sender_did, receiver_dids, 
                    group_id, message_data, mention_dids, read_status
-            FROM chat_history 
+            FROM message_history 
             WHERE group_id = ?
             ORDER BY timestamp DESC
             LIMIT ?
@@ -392,8 +392,8 @@ def get_group_messages(group_id, limit=50):
 
 @app.route('/')
 def index():
-    """Main chat interface"""
-    return render_template('chat_interface.html')
+    """Main message interface"""
+    return render_template('message_interface.html')
 
 @app.route('/api/conversations')
 def api_conversations():
@@ -424,7 +424,7 @@ def api_agent_names():
 def handle_connect():
     """Handle client connection"""
     print('Client connected')
-    emit('connected', {'data': 'Connected to chat interface'})
+    emit('connected', {'data': 'Connected to message interface'})
 
 @socketio.on('disconnect')
 def handle_disconnect():
@@ -547,7 +547,7 @@ def api_conversation_participants(group_id):
     return jsonify(participants)
 
 def _compute_group_id_with_host(receiver_dids: list[str]) -> str:
-    # Use the same group_id computation as chat/send_message.py: first 16 of sha256(sorted([HOST]+receivers)) plus 'grp_'
+    # Use the same group_id computation as message/send_message.py: first 16 of sha256(sorted([HOST]+receivers)) plus 'grp_'
     host_did = get_host_did()
     if not host_did:
         return None
@@ -573,7 +573,7 @@ def find_existing_conversation(participant_dids):
         cursor = conn.cursor()
         cursor.execute("""
             SELECT group_id, COUNT(*) as message_count, MAX(timestamp) as last_message
-            FROM chat_history
+            FROM message_history
             WHERE group_id = ?
             GROUP BY group_id
         """, (target_group_id,))

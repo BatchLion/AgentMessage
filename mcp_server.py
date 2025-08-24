@@ -6,7 +6,7 @@ import sqlite3
 import json
 import os
 from pathlib import Path
-from chat.db import init_chat_history_db, get_chat_db_path
+from message.db import init_message_history_db, get_message_db_path
 import hashlib
 import re
 from datetime import datetime, timezone, timedelta
@@ -183,7 +183,7 @@ class AgentMessageMCPServer:
             poll_interval: int = 5,
             timeout: int = 300
         ) -> dict:
-            """Send messages to each receiver in the receiver_dids list and store in $AGENTMESSAGE_PUBLIC_DATABLOCKS/chat_history.db
+            """Send messages to each receiver in the receiver_dids list and store in $AGENTMESSAGE_PUBLIC_DATABLOCKS/message_history.db
             
             Parameters:
             - receiver_dids: List of receiver DIDs (cannot be empty)
@@ -199,7 +199,7 @@ class AgentMessageMCPServer:
             - Generate timestamp in Beijing time (UTC+8, format YYYY-MM-DD HH:MM:SS)
             - Calculate group_id (create set from sender_did and receiver_dids, sort and take first 16 chars of sha256, prefix with grp_)
             - Parse @ mentions (supports @all, @receiverDID, @receiverName)
-            - Save message to chat_history table in $AGENTMESSAGE_PUBLIC_DATABLOCKS/chat_history.db
+            - Save message to message_history table in $AGENTMESSAGE_PUBLIC_DATABLOCKS/message_history.db
             - If wait_for_replies=True, poll and wait for all receivers to reply
             
             Returns:
@@ -216,7 +216,7 @@ class AgentMessageMCPServer:
                 "mention_dids": [...],
                 "replies": [...] // When wait_for_replies=True, contains received replies
               },
-              "database_path": "/absolute/path/to/chat_history.db"
+              "database_path": "/absolute/path/to/message_history.db"
             }
             """
             # Get sender identity
@@ -240,7 +240,7 @@ class AgentMessageMCPServer:
                     "message": f"Get sender identity failed: {str(e)}"
                 }
             
-            from chat.send_message import _send_message
+            from message.send_message import _send_message
             return await _send_message(sender_did, receiver_dids, message_data,
                                        wait_for_replies, poll_interval, timeout)
 
@@ -255,7 +255,7 @@ class AgentMessageMCPServer:
             
             Behavior:
             - Get local identity DID
-            - Find messages containing local DID as receiver in $AGENTMESSAGE_PUBLIC_DATABLOCKS/chat_history.db
+            - Find messages containing local DID as receiver in $AGENTMESSAGE_PUBLIC_DATABLOCKS/message_history.db
             - Determine if message is read based on read_status field, mark is_new
             - Set read status to true for current user in found unread messages
             - When returning, convert DID to name (sender_name, receiver_names, mention_names), while keeping original DID fields (sender_did, receiver_dids, mention_dids)
@@ -279,8 +279,8 @@ class AgentMessageMCPServer:
                 # New: Poll when no new messages, until timeout or new messages
                 start_time = time.time()
                 while True:
-                    # Initialize/ locate chat database (using $AGENTMESSAGE_PUBLIC_DATABLOCKS)
-                    db_path = init_chat_history_db()
+                    # Initialize/ locate message database (using $AGENTMESSAGE_PUBLIC_DATABLOCKS)
+                    db_path = init_message_history_db()
                     conn = sqlite3.connect(db_path)
                     try:
                         cursor = conn.cursor()
@@ -289,7 +289,7 @@ class AgentMessageMCPServer:
                         cursor.execute(
                             """
                             SELECT DISTINCT group_id
-                            FROM chat_history
+                            FROM message_history
                             WHERE receiver_dids LIKE ?
                             """,
                             (f'%"{my_did}"%',),
@@ -315,7 +315,7 @@ class AgentMessageMCPServer:
                             cursor.execute(
                                 """
                                 SELECT message_id, timestamp, sender_did, receiver_dids, message_data, mention_dids, read_status
-                                FROM chat_history
+                                FROM message_history
                                 WHERE group_id = ?
                                 ORDER BY timestamp ASC
                                 """,
@@ -414,7 +414,7 @@ class AgentMessageMCPServer:
                                     existing_rs = existing_rs if isinstance(existing_rs, dict) else {}
                                     existing_rs[my_did] = True
                                     cursor.execute(
-                                        "UPDATE chat_history SET read_status = ? WHERE message_id = ?",
+                                        "UPDATE message_history SET read_status = ? WHERE message_id = ?",
                                         (json.dumps(existing_rs, ensure_ascii=False), mid),
                                     )
                                 except Exception:
@@ -595,7 +595,7 @@ def _launch_visual_tools():
     try:
         base_dir = Path(__file__).parent / "database_visualization"
         start_visualizer = base_dir / "start_visualizer.py"
-        start_chat = base_dir / "start_chat_interface.py"
+        start_message = base_dir / "start_message_interface.py"
 
         if start_visualizer.exists():
             subprocess.Popen(
@@ -607,15 +607,15 @@ def _launch_visual_tools():
         else:
             print(f"Warning: Failed to find {start_visualizer}")
 
-        if start_chat.exists():
+        if start_message.exists():
             subprocess.Popen(
-                [sys.executable, str(start_chat)],
+                [sys.executable, str(start_message)],
                 cwd=str(base_dir),
                 stdout=subprocess.DEVNULL,
                 stderr=subprocess.DEVNULL
             )
         else:
-            print(f"Warning: Failed to find {start_chat}")
+            print(f"Warning: Failed to find {start_message}")
 
         # Open browser tabs shortly after spawning servers
         def _open_tabs():

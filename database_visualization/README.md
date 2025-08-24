@@ -4,14 +4,14 @@ This directory contains comprehensive tools for visualizing and interacting with
 
 ## 🎯 What's Included
 
-### 📊 **Analytics Dashboard** (`chat_visualizer.py`)
+### 📊 **Analytics Dashboard** (`message_visualizer.py`)
 - Real-time statistics and charts
 - Message filtering and search
 - Interactive data visualization
 - WebSocket live updates
 
-### 💬 **Modern Chat Interface** (`chat_interface.py`)
-- Three-panel chat UI (conversations, messages, agents)
+### 💬 **Modern Message Interface** (`message_interface.py`)
+- Three-panel message UI (conversations, messages, agents)
 - Real-time message display
 - Agent status monitoring
 - Modern responsive design
@@ -30,10 +30,10 @@ python start_visualizer.py
 ```
 Open: http://localhost:5001
 
-### Option 2: Chat Interface
+### Option 2: Message Interface
 ```bash
 cd database_visualization
-python start_chat_interface.py
+python start_message_interface.py
 ```
 Open: http://localhost:5002
 
@@ -43,7 +43,7 @@ cd database_visualization
 python analyze_db.py
 ```
 
-Note: Both start scripts automatically install required dependencies (see Dependencies) and will proceed even if the database file is missing (you’ll just see an empty dashboard/chat until data is written).  
+Note: Both start scripts automatically install required dependencies (see Dependencies) and will proceed even if the database file is missing (you’ll just see an empty dashboard/message until data is written).  
 
 ## 📁 Directory Structure
 
@@ -52,19 +52,19 @@ database_visualization/
 ├── README.md
 ├── requirements.txt             # Python dependencies for both UIs
 ├── analyze_db.py                # Database analysis tool
-├── chat_visualizer.py           # Analytics dashboard app (port 5001)
+├── message_visualizer.py           # Analytics dashboard app (port 5001)
 ├── start_visualizer.py          # Dashboard startup (auto-installs deps with lock)
 ├── test_visualizer.py           # Dashboard tests
 ├── demo_visualizer.py           # Feature demo
-├── chat_interface.py            # Modern chat UI backend (port 5002)
-├── start_chat_interface.py      # Chat UI startup (auto-installs deps with lock)
-├── test_chat_interface.py       # Chat UI tests
+├── message_interface.py            # Modern message UI backend (port 5002)
+├── start_message_interface.py      # Message UI startup (auto-installs deps with lock)
+├── test_message_interface.py       # Message UI tests
 └── templates/
-├── chat_dashboard.html      # Dashboard UI
-└── chat_interface.html      # Chat UI
+├── message_dashboard.html      # Dashboard UI
+└── message_interface.html      # Message UI
 ├── 
 └── # Documentation
-    ├── CHAT_VISUALIZER_README.md  # Detailed documentation
+    ├── MESSAGE_VISUALIZER_README.md  # Detailed documentation
     └── VISUALIZER_SUMMARY.md      # Complete solution summary
 ```
 
@@ -77,24 +77,24 @@ database_visualization/
 - **Live Updates**: WebSocket notifications for new messages
 - **Professional UI**: Clean, modern interface with responsive design
 
-### Chat Interface
+### Message Interface
 - **Three-Panel Layout**: Conversations | Messages | Agents
-- **Real-time Chat**: Live message display with sender avatars
-- **Smart Conversation Creation**: Start Chatting opens an existing HOST+agents conversation if it exists, otherwise creates a new one (newly created conversations are kept in-memory until first message is stored)
+- **Real-time Message**: Live message display with sender avatars
+- **Smart Conversation Creation**: Start Messageting opens an existing HOST+agents conversation if it exists, otherwise creates a new one (newly created conversations are kept in-memory until first message is stored)
 - **HOST Always Selected**: HOST is pinned and cannot be deselected in the agents list
 - **Scrollable Conversations**: Left conversations sidebar supports vertical scrolling for long lists
 - **Agent Monitoring**: Online/offline status indicators
-- **Modern Design**: Matches contemporary chat applications
+- **Modern Design**: Matches contemporary message applications
 - **Responsive**: Works on desktop, tablet, and mobile
 
 ## 🔧 Configuration
 
 ### Database Path
-All tools automatically read the database from "$AGENTMESSAGE_PUBLIC_DATABLOCKS/chat_history.db" (falling back to the repo’s ./data/ if the env var is not set). If the file doesn’t exist, the servers still start and will display data as soon as messages are written.
+All tools automatically read the database from "$AGENTMESSAGE_PUBLIC_DATABLOCKS/message_history.db" (falling back to the repo’s ./data/ if the env var is not set). If the file doesn’t exist, the servers still start and will display data as soon as messages are written.
 
 ### Ports
 - Analytics Dashboard: `5001`
-- Chat Interface: `5002`
+- Message Interface: `5002`
 
 ### Dependencies
 - Auto-install: Both start scripts will ensure pip is available and then install from the local requirements file at database_visualization/requirements.txt. Installs are serialized with a cross-process file lock to avoid race conditions during environment bootstrap.
@@ -105,11 +105,11 @@ pip install -r database_visualization/requirements.txt
 
 ### HOST Identity
 - HOST information is read from "$AGENTMESSAGE_PUBLIC_DATABLOCKS/host.json" (DID and display name)
-- The chat interface ensures the HOST identity is registered on first use
+- The message interface ensures the HOST identity is registered on first use
 
 ## 📊 Database Requirements
 
-The tools work with SQLite databases containing a `chat_history` table with these fields:
+The tools work with SQLite databases containing a `message_history` table with these fields:
 - `message_id` (TEXT PRIMARY KEY)
 - `timestamp` (TEXT)
 - `sender_did` (TEXT)
@@ -126,8 +126,8 @@ Run comprehensive tests:
 # Test analytics dashboard
 python test_visualizer.py
 
-# Test chat interface  
-python test_chat_interface.py
+# Test message interface  
+python test_message_interface.py
 
 # Analyze database structure
 python analyze_db.py
@@ -147,7 +147,7 @@ Socket.IO events (dashboard):
 - `request_messages` -> `messages_response`
 - Server push: `new_messages` (broadcast when new DB rows appear)
 
-### Chat Interface (`localhost:5002`)
+### Message Interface (`localhost:5002`)
 - `GET /api/conversations` - List conversation groups
 - `GET /api/agents` - List available agents
 - `GET /api/messages/<group_id>` - Get messages for specific group
@@ -156,7 +156,7 @@ Socket.IO events (dashboard):
 - `GET /api/host-info` - HOST DID and display name for the UI (HOST is pinned/always selected)
 - `POST /api/create-conversation` - Smart creation: returns existing HOST+agents conversation if present; otherwise returns a new group_id (kept in-memory until first message)
 
-Socket.IO events (chat UI):
+Socket.IO events (message UI):
 - `connect` / `disconnect`
 - `join_conversation` -> `conversation_messages`
 - `send_message`
@@ -192,4 +192,4 @@ Both interfaces are **production-ready** with:
 - ✅ Full documentation
 - ✅ Test coverage
 
-Choose the interface that best fits your needs and start exploring your chat data! 🚀
+Choose the interface that best fits your needs and start exploring your message data! 🚀

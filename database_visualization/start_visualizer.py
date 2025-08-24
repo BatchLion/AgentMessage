@@ -1,6 +1,6 @@
 #!/usr/bin/env python
 """
-Startup script for the Chat History Visualizer
+Startup script for the Message History Visualizer
 """
 import subprocess
 import sys
@@ -80,7 +80,7 @@ def check_database():
     """Check if database exists"""
     public_env = os.getenv("AGENTMESSAGE_PUBLIC_DATABLOCKS")
     data_dir = Path(public_env) if public_env else (Path(__file__).parent.parent / "data")
-    db_path = data_dir / "chat_history.db"
+    db_path = data_dir / "message_history.db"
     if not db_path.exists():
         print(f"⚠️  Database not found at {db_path}")
         print("The visualizer will still start, but no data will be displayed until messages are added.")
@@ -90,7 +90,7 @@ def check_database():
     return True
 
 def main():
-    print("🚀 Starting Chat History Visualizer...")
+    print("🚀 Starting Message History Visualizer...")
     print("=" * 50)
     
     # Install dependencies
@@ -108,7 +108,7 @@ def main():
     
     # Start the visualizer
     try:
-        from chat_visualizer import app, socketio, monitor
+        from message_visualizer import app, socketio, monitor
         monitor.start_monitoring()
         socketio.run(app, debug=False, host='0.0.0.0', port=5001)
     except KeyboardInterrupt:

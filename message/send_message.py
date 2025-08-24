@@ -8,7 +8,7 @@ import sqlite3
 from pathlib import Path
 from datetime import datetime, timezone, timedelta
 
-from chat.db import init_chat_history_db
+from message.db import init_message_history_db
 from identity.identity_manager import IdentityManager
 
 async def _send_message(
@@ -20,7 +20,7 @@ async def _send_message(
     timeout: int = 300 # - timeout: Timeout for waiting in seconds (default 300 seconds)
 ) -> dict:
     """
-    Send message to server and store it in $AGENTMESSAGE_PUBLIC_DATABLOCKS/chat_history.db
+    Send message to server and store it in $AGENTMESSAGE_PUBLIC_DATABLOCKS/message_history.db
     """
     # Parameter validation
     if not isinstance(receiver_dids, list) or len(receiver_dids) == 0:
@@ -276,10 +276,10 @@ async def _send_message(
     except Exception:
         mention_dids = []
     
-    # Write to chat_history.db
+    # Write to message_history.db
     try:
         # Initialize database (internally checks if AGENTMESSAGE_PUBLIC_DATABLOCKS is set)
-        db_path = init_chat_history_db()
+        db_path = init_message_history_db()
         
         # Initialize read_status: mark all receivers as unread (false)
         read_status = {did: False for did in receiver_dids}
@@ -289,7 +289,7 @@ async def _send_message(
             cursor = conn.cursor()
             cursor.execute(
                 """
-                INSERT INTO chat_history
+                INSERT INTO message_history
                 (message_id, timestamp, sender_did, receiver_dids, group_id, message_data, mention_dids, read_status)
                 VALUES (?, ?, ?, ?, ?, ?, ?, ?)
                 """,
@@ -342,7 +342,7 @@ async def _send_message(
                 cursor.execute(
                     """
                     SELECT message_id, timestamp, sender_did, message_data
-                    FROM chat_history
+                    FROM message_history
                     WHERE group_id = ? 
                     AND timestamp > ?
                     AND sender_did IN ({})
@@ -375,7 +375,7 @@ async def _send_message(
                             # Current user DID in this function is sender_did
                             try:
                                 cursor.execute(
-                                    "SELECT read_status FROM chat_history WHERE message_id = ?",
+                                    "SELECT read_status FROM message_history WHERE message_id = ?",
                                     (msg_id,),
                                 )
                                 row = cursor.fetchone()
@@ -387,7 +387,7 @@ async def _send_message(
                                 if not rs.get(sender_did, False):
                                     rs[sender_did] = True
                                     cursor.execute(
-                                        "UPDATE chat_history SET read_status = ? WHERE message_id = ?",
+                                        "UPDATE message_history SET read_status = ? WHERE message_id = ?",
                                         (json.dumps(rs, ensure_ascii=False), msg_id),
                                     )
                                     conn.commit()

@@ -12,11 +12,11 @@
 - 核心服务器：<mcfile name="mcp_server.py" path="/Users/batchlions/Developments/AgentPhone/agentmessage/mcp_server.py"></mcfile>
 - 身份工具：<mcfile name="identity/tools.py" path="/Users/batchlions/Developments/AgentPhone/agentmessage/identity/tools.py"></mcfile>
 - 身份管理器：<mcfile name="identity/identity_manager.py" path="/Users/batchlions/Developments/AgentPhone/agentmessage/identity/identity_manager.py"></mcfile>
-- 聊天数据库辅助：<mcfile name="chat/db.py" path="/Users/batchlions/Developments/AgentPhone/agentmessage/chat/db.py"></mcfile>
-- 发送消息核心：<mcfile name="chat/send_message.py" path="/Users/batchlions/Developments/AgentPhone/agentmessage/chat/send_message.py"></mcfile>
+- 聊天数据库辅助：<mcfile name="message/db.py" path="/Users/batchlions/Developments/AgentPhone/agentmessage/message/db.py"></mcfile>
+- 发送消息核心：<mcfile name="message/send_message.py" path="/Users/batchlions/Developments/AgentPhone/agentmessage/message/send_message.py"></mcfile>
 - 可视化服务：
-  - Visualizer（5001 端口）：<mcfile name="database_visualization/chat_visualizer.py" path="/Users/batchlions/Developments/AgentPhone/agentmessage/database_visualization/chat_visualizer.py"></mcfile>
-  - Chat Interface（5002 端口）：<mcfile name="database_visualization/chat_interface.py" path="/Users/batchlions/Developments/AgentPhone/agentmessage/database_visualization/chat_interface.py"></mcfile>
+  - Visualizer（5001 端口）：<mcfile name="database_visualization/message_visualizer.py" path="/Users/batchlions/Developments/AgentPhone/agentmessage/database_visualization/message_visualizer.py"></mcfile>
+  - Message Interface（5002 端口）：<mcfile name="database_visualization/message_interface.py" path="/Users/batchlions/Developments/AgentPhone/agentmessage/database_visualization/message_interface.py"></mcfile>
 
 ## 架构
 
@@ -33,12 +33,12 @@ flowchart TD
 
   subgraph Storage
     M[AGENTMESSAGE_MEMORY_PATH\nidentity.json]
-    P[AGENTMESSAGE_PUBLIC_DATABLOCKS\n- identities.db\n- chat_history.db\n- host.json]
+    P[AGENTMESSAGE_PUBLIC_DATABLOCKS\n- identities.db\n- message_history.db\n- host.json]
   end
 
   subgraph WebUI[Web UIs]
-    V[Chat Visualizer\n:5001]
-    C[Chat Interface\n:5002]
+    V[Message Visualizer\n:5001]
+    C[Message Interface\n:5002]
   end
 
   MCPClient -->|MCP Tools| A
@@ -56,7 +56,7 @@ flowchart TD
 - AGENTMESSAGE_MEMORY_PATH：智能体身份的本地私有内存目录（读取）。身份管理器在此加载/保存 identity.json。
 - AGENTMESSAGE_PUBLIC_DATABLOCKS：用于发现与会话的公共数据目录（读写）。将存储：
   - identities.db（已发布的身份）
-  - chat_history.db（消息）
+  - message_history.db（消息）
   - host.json（服务器启动时引导 HOST 身份）
 
 ## MCP 客户端配置（JSON，经由 uvx 启动）
@@ -98,16 +98,16 @@ flowchart TD
 - 将当前身份写入 $AGENTMESSAGE_PUBLIC_DATABLOCKS/identities.db。
 
 4）可选：启动 Web 界面
-- Chat Visualizer（只读仪表盘）：5001 端口
+- Message Visualizer（只读仪表盘）：5001 端口
 
 ```bash
 python /Users/batchlions/Developments/AgentPhone/agentmessage/database_visualization/start_visualizer.py
 ```
 
-- Chat Interface（交互聊天界面）：5002 端口
+- Message Interface（交互聊天界面）：5002 端口
 
 ```bash
-python /Users/batchlions/Developments/AgentPhone/agentmessage/database_visualization/start_chat_interface.py
+python /Users/batchlions/Developments/AgentPhone/agentmessage/database_visualization/start_message_interface.py
 ```
 
 访问：
@@ -146,7 +146,7 @@ pip install -r /Users/batchlions/Developments/AgentPhone/agentmessage/database_v
   - 返回：{ status, total, identities: [{did,name,description,capabilities,created_at,updated_at}], database_path }
 
 - send_message(receiver_dids: list[str], message_data: dict) -> dict
-  - 从当前智能体向一个或多个接收者发送消息；校验接收者 DID 是否存在于 identities.db；生成 ID/时间戳；写入 chat_history.db。
+  - 从当前智能体向一个或多个接收者发送消息；校验接收者 DID 是否存在于 identities.db；生成 ID/时间戳；写入 message_history.db。
   - 消息 ID 格式：msg_{epoch_ms}_{sha256 前 12 位}
   - 群组 ID 格式：grp_{sha256 前 16 位}，来源于排序去重后的“{sender_did + receiver_dids}”集合
   - 支持 @ 提及：@all、@接收者 DID、@接收者名称
@@ -159,7 +159,7 @@ pip install -r /Users/batchlions/Developments/AgentPhone/agentmessage/database_v
       },
       database_path
     }
-  - 核心逻辑在 <mcfile name="chat/send_message.py" path="/Users/batchlions/Developments/AgentPhone/agentmessage/chat/send_message.py"></mcfile>（由 MCP 工具调用）。
+  - 核心逻辑在 <mcfile name="message/send_message.py" path="/Users/batchlions/Developments/AgentPhone/agentmessage/message/send_message.py"></mcfile>（由 MCP 工具调用）。
 
 - check_new_messages(limit: int = 10, poll_interval: int = 5, timeout: int | None = None) -> dict
   - 返回当前智能体的全部未读消息（is_new=true）以及每个群组最近的 limit 条已读消息；
@@ -172,8 +172,8 @@ pip install -r /Users/batchlions/Developments/AgentPhone/agentmessage/database_v
 位于 $AGENTMESSAGE_PUBLIC_DATABLOCKS（必要时自动创建）：
 - identities.db
   - 表 identities（did 主键, name, description, capabilities（JSON 文本）, created_at, updated_at）
-- chat_history.db
-  - 通过 <mcfile name="chat/db.py" path="/Users/batchlions/Developments/AgentPhone/agentmessage/chat/db.py"></mcfile> 初始化，包含 chat_history 表及其索引
+- message_history.db
+  - 通过 <mcfile name="message/db.py" path="/Users/batchlions/Developments/AgentPhone/agentmessage/message/db.py"></mcfile> 初始化，包含 message_history 表及其索引
 - host.json
   - 服务器启动时由 check_or_create_host() 确保存在；同时会插入/更新到 identities.db
 
@@ -184,7 +184,7 @@ pip install -r /Users/batchlions/Developments/AgentPhone/agentmessage/database_v
 
 二者均为可选，但对开发与演示非常有用：
 
-- Chat Visualizer（5001 端口）
+- Message Visualizer（5001 端口）
   - 使用 start_visualizer.py 启动
   - 只读可视化仪表盘
 
@@ -192,15 +192,15 @@ pip install -r /Users/batchlions/Developments/AgentPhone/agentmessage/database_v
 python /Users/batchlions/Developments/AgentPhone/agentmessage/database_visualization/start_visualizer.py
 ```
 
-- Chat Interface（5002 端口）
-  - 使用 start_chat_interface.py 启动
+- Message Interface（5002 端口）
+  - 使用 start_message_interface.py 启动
   - 具备会话与智能体视图的交互式聊天界面
 
 ```bash
-python /Users/batchlions/Developments/AgentPhone/agentmessage/database_visualization/start_chat_interface.py
+python /Users/batchlions/Developments/AgentPhone/agentmessage/database_visualization/start_message_interface.py
 ```
 
-Chat Interface 后端的关键 HTTP 端点（见 <mcfile name="database_visualization/chat_interface.py" path="/Users/batchlions/Developments/AgentPhone/agentmessage/database_visualization/chat_interface.py"></mcfile>）：
+Message Interface 后端的关键 HTTP 端点（见 <mcfile name="database_visualization/message_interface.py" path="/Users/batchlions/Developments/AgentPhone/agentmessage/database_visualization/message_interface.py"></mcfile>）：
 - GET /api/conversations
 - GET /api/agents
 - GET /api/messages/<group_id>
@@ -238,7 +238,7 @@ Chat Interface 后端的关键 HTTP 端点（见 <mcfile name="database_visualiz
 7）向已知接收者发送消息
 - 前提：接收者已存在于 identities.db
 - 输入：send_message(["did:...:alice"], {"text":"Hello"})
-- 期望：status="success"，data.message_id 与 data.group_id 存在，并写入 chat_history.db
+- 期望：status="success"，data.message_id 与 data.group_id 存在，并写入 message_history.db
 
 8）向未知接收者发送消息
 - 输入：send_message(["did:...:notfound"], {"text":"Hi"})

@@ -3,8 +3,8 @@ Modular Agent Identity and Messaging MCP Server
 
 - Agent identity management (create, recall, persist)
 - DID generation and publication for discovery
-- A minimal but powerful set of MCP tools to register identities, publish them, list identities, exchange messages, and consume unread chats
-- Optional web UIs for visualizing data and chatting
+- A minimal but powerful set of MCP tools to register identities, publish them, list identities, exchange messages, and consume unread messages
+- Optional web UIs for visualizing data and messageting
 
 It is designed to be simple, modular, and easy to integrate with MCP-compatible clients.
 
@@ -12,11 +12,11 @@ References
 - Core server: <mcfile name="mcp_server.py" path="/Users/batchlions/Developments/AgentPhone/agentmessage/mcp_server.py"></mcfile>
 - Identity tools: <mcfile name="identity/tools.py" path="/Users/batchlions/Developments/AgentPhone/agentmessage/identity/tools.py"></mcfile>
 - Identity manager: <mcfile name="identity/identity_manager.py" path="/Users/batchlions/Developments/AgentPhone/agentmessage/identity/identity_manager.py"></mcfile>
-- Chat DB helpers: <mcfile name="chat/db.py" path="/Users/batchlions/Developments/AgentPhone/agentmessage/chat/db.py"></mcfile>
-- Send message core: <mcfile name="chat/send_message.py" path="/Users/batchlions/Developments/AgentPhone/agentmessage/chat/send_message.py"></mcfile>
+- Message DB helpers: <mcfile name="message/db.py" path="/Users/batchlions/Developments/AgentPhone/agentmessage/message/db.py"></mcfile>
+- Send message core: <mcfile name="message/send_message.py" path="/Users/batchlions/Developments/AgentPhone/agentmessage/message/send_message.py"></mcfile>
 - Visualization servers: 
-  - Visualizer (port 5001): <mcfile name="database_visualization/chat_visualizer.py" path="/Users/batchlions/Developments/AgentPhone/agentmessage/database_visualization/chat_visualizer.py"></mcfile>
-  - Chat Interface (port 5002): <mcfile name="database_visualization/chat_interface.py" path="/Users/batchlions/Developments/AgentPhone/agentmessage/database_visualization/chat_interface.py"></mcfile>
+  - Visualizer (port 5001): <mcfile name="database_visualization/message_visualizer.py" path="/Users/batchlions/Developments/AgentPhone/agentmessage/database_visualization/message_visualizer.py"></mcfile>
+  - Message Interface (port 5002): <mcfile name="database_visualization/message_interface.py" path="/Users/batchlions/Developments/AgentPhone/agentmessage/database_visualization/message_interface.py"></mcfile>
 
 ## Architecture
 
@@ -33,12 +33,12 @@ flowchart TD
 
   subgraph Storage
     M[AGENTMESSAGE_MEMORY_PATH\nidentity.json]
-    P[AGENTMESSAGE_PUBLIC_DATABLOCKS\n- identities.db\n- chat_history.db\n- host.json]
+    P[AGENTMESSAGE_PUBLIC_DATABLOCKS\n- identities.db\n- message_history.db\n- host.json]
   end
 
   subgraph WebUI[Web UIs]
-    V[Chat Visualizer\n:5001]
-    C[Chat Interface\n:5002]
+    V[Message Visualizer\n:5001]
+    C[Message Interface\n:5002]
   end
 
   MCPClient -->|MCP Tools| A
@@ -54,9 +54,9 @@ Dark mode note: This diagram uses default Mermaid colors and renders clearly in 
 ## Environment Variables
 
 - AGENTMESSAGE_MEMORY_PATH: Local private memory directory for the agent identity (read). Used by the identity manager to load/save identity.json.
-- AGENTMESSAGE_PUBLIC_DATABLOCKS: Public data directory for discovery and chat (read/write). Will store:
+- AGENTMESSAGE_PUBLIC_DATABLOCKS: Public data directory for discovery and message (read/write). Will store:
   - identities.db (published identities)
-  - chat_history.db (messages)
+  - message_history.db (messages)
   - host.json (HOST identity bootstrap on server start)
 
 ## MCP Client Configuration (JSON via uvx)
@@ -98,21 +98,21 @@ Notes:
 - This writes your identity into $AGENTMESSAGE_PUBLIC_DATABLOCKS/identities.db.
 
 4) (Optional) Launch Web UIs
-- Chat Visualizer (read-only dashboard): port 5001
+- Message Visualizer (read-only dashboard): port 5001
 
 ```bash
 python /Users/batchlions/Developments/AgentPhone/agentmessage/database_visualization/start_visualizer.py
 ```
 
-- Chat Interface (interactive chat UI): port 5002
+- Message Interface (interactive message UI): port 5002
 
 ```bash
-python /Users/batchlions/Developments/AgentPhone/agentmessage/database_visualization/start_chat_interface.py
+python /Users/batchlions/Developments/AgentPhone/agentmessage/database_visualization/start_message_interface.py
 ```
 
 Visit:
 - http://localhost:5001 (visual summary)
-- http://localhost:5002 (interactive chat)
+- http://localhost:5002 (interactive message)
 
 Web UI startup and dependencies:
 - Both starters auto-install the local dependencies (database_visualization/requirements.txt). Installs are serialized with a cross-process file lock to avoid race conditions when multiple processes bootstrap at the same time.
@@ -146,7 +146,7 @@ All tools are registered by AgentMessageMCPServer._setup_tools() in <mcfile name
   - Returns: { status, total, identities: [{did,name,description,capabilities,created_at,updated_at}], database_path }
 
 - send_message(receiver_dids: list[str], message_data: dict) -> dict
-  - Sends a message from the current agent to one or more receivers, validates receiver DIDs against identities.db, generates IDs/timestamps, persists into chat_history.db.
+  - Sends a message from the current agent to one or more receivers, validates receiver DIDs against identities.db, generates IDs/timestamps, persists into message_history.db.
   - Message ID format: msg_{epoch_ms}_{sha256_prefix12}
   - Group ID format: grp_{sha256_prefix16} derived from sorted unique set of {sender_did + receiver_dids}
   - Supports @ mentions: @all, @receiver_did, @receiver_name
@@ -159,7 +159,7 @@ All tools are registered by AgentMessageMCPServer._setup_tools() in <mcfile name
       },
       database_path
     }
-  - Core logic in <mcfile name="chat/send_message.py" path="/Users/batchlions/Developments/AgentPhone/agentmessage/chat/send_message.py"></mcfile> (invoked by the MCP tool).
+  - Core logic in <mcfile name="message/send_message.py" path="/Users/batchlions/Developments/AgentPhone/agentmessage/message/send_message.py"></mcfile> (invoked by the MCP tool).
 
 - check_new_messages(limit: int = 10, poll_interval: int = 5, timeout: int | None = None) -> dict
   - Returns all unread messages for the current agent (is_new=true) plus up to limit recent read messages per group.
@@ -172,8 +172,8 @@ All tools are registered by AgentMessageMCPServer._setup_tools() in <mcfile name
 Within $AGENTMESSAGE_PUBLIC_DATABLOCKS (created as needed):
 - identities.db
   - Table identities(did PRIMARY KEY, name, description, capabilities(JSON text), created_at, updated_at)
-- chat_history.db
-  - Initialized via <mcfile name="chat/db.py" path="/Users/batchlions/Developments/AgentPhone/agentmessage/chat/db.py"></mcfile>, contains chat_history table and indexes as defined there
+- message_history.db
+  - Initialized via <mcfile name="message/db.py" path="/Users/batchlions/Developments/AgentPhone/agentmessage/message/db.py"></mcfile>, contains message_history table and indexes as defined there
 - host.json
   - Ensured by check_or_create_host() on server start; also inserted/updated into identities.db
 
@@ -184,7 +184,7 @@ Within AGENTMESSAGE_MEMORY_PATH:
 
 Both are optional but handy during development and demos:
 
-- Chat Visualizer (port 5001)
+- Message Visualizer (port 5001)
   - Starts with start_visualizer.py
   - Read-only visual dashboard
 
@@ -192,15 +192,15 @@ Both are optional but handy during development and demos:
 python /Users/batchlions/Developments/AgentPhone/agentmessage/database_visualization/start_visualizer.py
 ```
 
-- Chat Interface (port 5002)
-  - Starts with start_chat_interface.py
-  - Interactive chat with conversations and agents
+- Message Interface (port 5002)
+  - Starts with start_message_interface.py
+  - Interactive message with conversations and agents
 
 ```bash
-python /Users/batchlions/Developments/AgentPhone/agentmessage/database_visualization/start_chat_interface.py
+python /Users/batchlions/Developments/AgentPhone/agentmessage/database_visualization/start_message_interface.py
 ```
 
-Key HTTP endpoints exposed by the Chat Interface backend (<mcfile name="database_visualization/chat_interface.py" path="/Users/batchlions/Developments/AgentPhone/agentmessage/database_visualization/chat_interface.py"></mcfile>):
+Key HTTP endpoints exposed by the Message Interface backend (<mcfile name="database_visualization/message_interface.py" path="/Users/batchlions/Developments/AgentPhone/agentmessage/database_visualization/message_interface.py"></mcfile>):
 - GET /api/conversations
 - GET /api/agents
 - GET /api/messages/<group_id>
@@ -238,7 +238,7 @@ Key HTTP endpoints exposed by the Chat Interface backend (<mcfile name="database
 7) Send message to known receivers
 - Pre: receivers exist in identities.db
 - Input: send_message(["did:...:alice"], {"text":"Hello"})
-- Expected: status="success", data.message_id set, data.group_id set, persisted in chat_history.db
+- Expected: status="success", data.message_id set, data.group_id set, persisted in message_history.db
 
 8) Send message with unknown receiver
 - Input: send_message(["did:...:notfound"], {"text":"Hi"})

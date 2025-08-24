@@ -1,6 +1,6 @@
 #!/usr/bin/env python
 """
-Startup script for the Chat Interface
+Startup script for the Message Interface
 """
 # (Removed top-level eventlet import; it will be imported after dependencies are ensured)
 import subprocess
@@ -79,7 +79,7 @@ def check_database():
     """Check if database exists"""
     public_env = os.getenv("AGENTMESSAGE_PUBLIC_DATABLOCKS")
     data_dir = Path(public_env) if public_env else (Path(__file__).parent.parent / "data")
-    db_path = data_dir / "chat_history.db"
+    db_path = data_dir / "message_history.db"
     if not db_path.exists():
         print(f"⚠️  Database not found at {db_path}")
         print("The interface will still start, but no data will be displayed until messages are added.")
@@ -89,7 +89,7 @@ def check_database():
     return True
 
 def main():
-    print("🚀 Starting Modern Chat Interface...")
+    print("🚀 Starting Modern Message Interface...")
     print("=" * 50)
     
     # Check dependencies
@@ -103,10 +103,10 @@ def main():
     # Check database
     check_database()
     
-    print("\n💬 Starting chat interface...")
+    print("\n💬 Starting message interface...")
     print("🌐 Open your browser and go to: http://localhost:5002")
     print("💡 Features:")
-    print("   • Real-time chat interface")
+    print("   • Real-time message interface")
     print("   • Conversation sidebar")
     print("   • Agent status panel")
     print("   • Modern UI design")
@@ -115,10 +115,10 @@ def main():
     
     # Start the interface
     try:
-        from chat_interface import app, socketio
+        from message_interface import app, socketio
         socketio.run(app, debug=False, host='0.0.0.0', port=5002)
     except KeyboardInterrupt:
-        print("\n👋 Shutting down chat interface...")
+        print("\n👋 Shutting down message interface...")
     except Exception as e:
         print(f"❌ Error starting interface: {e}")
 

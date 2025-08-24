@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Agent Chat Interface</title>
+    <title>Agent Message Interface</title>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/socket.io/4.7.2/socket.io.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/highlight.min.js"></script>
@@ -23,7 +23,7 @@
             overflow: hidden;
         }
 
-        .chat-container {
+        .message-container {
             display: grid;
             grid-template-columns: 250px 1fr 280px;
             height: 100vh;
@@ -123,8 +123,8 @@
             color: #666;
         }
 
-        /* Main Chat Area */
-        .chat-main {
+        /* Main Message Area */
+        .message-main {
             background: #c0c0c0;
             display: flex;
             flex-direction: column;
@@ -133,7 +133,7 @@
             overflow: hidden; /* Prevent main container from scrolling */
         }
 
-        .chat-header {
+        .message-header {
             background: #b0b0b0;
             padding: 1rem;
             border-bottom: 1px solid #999;
@@ -494,8 +494,8 @@
             background: #666;
         }
 
-        /* Chat Theme Section */
-        .chat-theme-section {
+        /* Message Theme Section */
+        .message-theme-section {
             background: #2a2a2a;
             border-top: 1px solid #333;
             padding: 1rem;
@@ -524,7 +524,7 @@
             border-color: #007bff;
         }
 
-        .start-chat-button {
+        .start-message-button {
             width: 100%;
             background: #333;
             color: #ccc;
@@ -536,7 +536,7 @@
             transition: background 0.2s ease;
         }
 
-        .start-chat-button:hover {
+        .start-message-button:hover {
             background: #444;
         }
 
@@ -568,7 +568,7 @@
 
         /* Responsive Design */
         @media (max-width: 768px) {
-            .chat-container {
+            .message-container {
                 grid-template-columns: 1fr;
             }
             
@@ -616,7 +616,7 @@
     </style>
 </head>
 <body>
-    <div class="chat-container">
+    <div class="message-container">
         <!-- Left Sidebar - Conversations -->
         <div class="conversations-sidebar">
             <div class="sidebar-header">
@@ -627,14 +627,14 @@
             </div>
         </div>
 
-        <!-- Main Chat Area -->
-        <div class="chat-main">
-            <div class="chat-header" id="chatHeader">
-                Select a conversation to start chatting
+        <!-- Main Message Area -->
+        <div class="message-main">
+            <div class="message-header" id="messageHeader">
+                Select a conversation to start messageting
             </div>
             <div class="messages-container" id="messagesContainer">
                 <div class="empty-state">
-                    <h3>Welcome to Agent Chat</h3>
+                    <h3>Welcome to Agent Message</h3>
                     <p>Select a conversation from the sidebar to view messages</p>
                 </div>
             </div>
@@ -655,22 +655,22 @@
         <!-- Right Sidebar - Agents -->
         <div class="agents-sidebar">
             <div class="agents-header">
-                Agents to chat with
+                Agents to message with
             </div>
             <div class="agents-list" id="agentsList">
                 <div class="loading">Loading agents...</div>
             </div>
             
-            <div class="chat-theme-section">
-                <div class="theme-header">Chat Theme</div>
+            <div class="message-theme-section">
+                <div class="theme-header">Message Theme</div>
                 <input 
                     type="text" 
                     class="theme-input" 
                     placeholder="e.g. How to train a dragon?"
                     id="themeInput"
                 >
-                <button class="start-chat-button" id="startChatButton">
-                    Start Chatting
+                <button class="start-message-button" id="startMessageButton">
+                    Start Messageting
                 </button>
             </div>
         </div>
@@ -778,11 +778,11 @@
         const conversationList = document.getElementById('conversationList');
         const agentsList = document.getElementById('agentsList');
         const messagesContainer = document.getElementById('messagesContainer');
-        const chatHeader = document.getElementById('chatHeader');
+        const messageHeader = document.getElementById('messageHeader');
         const messageInput = document.getElementById('messageInput');
         const sendButton = document.getElementById('sendButton');
         const themeInput = document.getElementById('themeInput');
-        const startChatButton = document.getElementById('startChatButton');
+        const startMessageButton = document.getElementById('startMessageButton');
 
         // Socket events
         socket.on('connect', function() {
@@ -801,7 +801,7 @@
         socket.on('message_sent', function(data) {
             // Handle new message broadcast
             if (data.group_id === currentConversation) {
-                addMessageToChat(data);
+                addMessageToMessage(data);
             }
         });
 
@@ -938,14 +938,14 @@
 
             currentConversation = groupId;
 
-            // Use consistent title with left sidebar: conv.display_name; fallback to original "Chat last 8 digits" if not found
+            // Use consistent title with left sidebar: conv.display_name; fallback to original "Message last 8 digits" if not found
             const selectedConv = Array.isArray(conversations)
                 ? conversations.find(c => c.group_id === groupId)
                 : null;
             const displayName = (selectedConv && selectedConv.display_name)
                 ? selectedConv.display_name
-                : `Chat ${groupId.slice(-8)}`;
-            chatHeader.textContent = displayName;
+                : `Message ${groupId.slice(-8)}`;
+            messageHeader.textContent = displayName;
             
             // When switching conversations, reset the deduplication set
             displayedMessageIds = new Set();
@@ -1009,8 +1009,8 @@
             }, 100);
         }
 
-        // Add new message to chat (Enhanced: support placeholder and replacement)
-        function addMessageToChat(messageData) {
+        // Add new message to message (Enhanced: support placeholder and replacement)
+        function addMessageToMessage(messageData) {
             // Unified reading of client_msg_id (priority: top level, then inside message_data)
             const clientMsgId = messageData.client_msg_id || (messageData.message_data && messageData.message_data.client_msg_id);
 
@@ -1272,12 +1272,12 @@
             return Array.from(document.querySelectorAll('.agent-select:checked:not(.host-select)')).map(el => el.value);
         }
 
-        startChatButton.addEventListener('click', async () => {
+        startMessageButton.addEventListener('click', async () => {
             const theme = themeInput.value.trim();
             const selected = getSelectedAgents();
 
             if (!selected.length) {
-                alert('Please select at least one agent to start a chat.');
+                alert('Please select at least one agent to start a message.');
                 return;
             }
 
@@ -1300,8 +1300,8 @@
                 themeInput.value = '';
                 document.querySelectorAll('.agent-select:not(.host-select)').forEach(el => el.checked = false);
             } catch (e) {
-                console.error('Start chatting error:', e);
-                alert('Failed to start chat: ' + e.message);
+                console.error('Start messageting error:', e);
+                alert('Failed to start message: ' + e.message);
             }
         });
 
