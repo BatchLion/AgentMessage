@@ -20,7 +20,7 @@ class IdentityManager:
     
     def _get_memory_path(self) -> Path:
         """Get memory path"""
-        memory_path = os.getenv('AGENTCHAT_MEMORY_PATH')
+        memory_path = os.getenv('AGENTMESSAGE_MEMORY_PATH')
         if memory_path:
             return Path(memory_path)
         else:

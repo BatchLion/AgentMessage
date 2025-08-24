@@ -90,7 +90,7 @@ database_visualization/
 ## 🔧 Configuration
 
 ### Database Path
-All tools automatically read the database from "$AGENTCHAT_PUBLIC_DATABLOCKS/chat_history.db" (falling back to the repo’s ./data/ if the env var is not set). If the file doesn’t exist, the servers still start and will display data as soon as messages are written.
+All tools automatically read the database from "$AGENTMESSAGE_PUBLIC_DATABLOCKS/chat_history.db" (falling back to the repo’s ./data/ if the env var is not set). If the file doesn’t exist, the servers still start and will display data as soon as messages are written.
 
 ### Ports
 - Analytics Dashboard: `5001`
@@ -104,7 +104,7 @@ pip install -r database_visualization/requirements.txt
 ```
 
 ### HOST Identity
-- HOST information is read from "$AGENTCHAT_PUBLIC_DATABLOCKS/host.json" (DID and display name)
+- HOST information is read from "$AGENTMESSAGE_PUBLIC_DATABLOCKS/host.json" (DID and display name)
 - The chat interface ensures the HOST identity is registered on first use
 
 ## 📊 Database Requirements

@@ -32,8 +32,8 @@ flowchart TD
   end
 
   subgraph Storage
-    M[AGENTCHAT_MEMORY_PATH\nidentity.json]
-    P[AGENTCHAT_PUBLIC_DATABLOCKS\n- identities.db\n- chat_history.db\n- host.json]
+    M[AGENTMESSAGE_MEMORY_PATH\nidentity.json]
+    P[AGENTMESSAGE_PUBLIC_DATABLOCKS\n- identities.db\n- chat_history.db\n- host.json]
   end
 
   subgraph WebUI[Web UIs]
@@ -53,8 +53,8 @@ Dark mode note: This diagram uses default Mermaid colors and renders clearly in 
 
 ## Environment Variables
 
-- AGENTCHAT_MEMORY_PATH: Local private memory directory for the agent identity (read). Used by the identity manager to load/save identity.json.
-- AGENTCHAT_PUBLIC_DATABLOCKS: Public data directory for discovery and chat (read/write). Will store:
+- AGENTMESSAGE_MEMORY_PATH: Local private memory directory for the agent identity (read). Used by the identity manager to load/save identity.json.
+- AGENTMESSAGE_PUBLIC_DATABLOCKS: Public data directory for discovery and chat (read/write). Will store:
   - identities.db (published identities)
   - chat_history.db (messages)
   - host.json (HOST identity bootstrap on server start)
@@ -70,8 +70,8 @@ If you start the MCP server from an MCP client, prefer configuring environment v
       "command": "uvx",
       "args": ["--from", "path/to/agentmessage", "agentmessage"],
       "env": {
-        "AGENTCHAT_MEMORY_PATH": "path/to/memory",
-        "AGENTCHAT_PUBLIC_DATABLOCKS": "path/to/public/datablocks"
+        "AGENTMESSAGE_MEMORY_PATH": "path/to/memory",
+        "AGENTMESSAGE_PUBLIC_DATABLOCKS": "path/to/public/datablocks"
       }
     }
   }
@@ -95,7 +95,7 @@ Notes:
 - Use your MCP client to call register_recall_id with name, description, capabilities.
 
 3) Publish your identity via go_online
-- This writes your identity into $AGENTCHAT_PUBLIC_DATABLOCKS/identities.db.
+- This writes your identity into $AGENTMESSAGE_PUBLIC_DATABLOCKS/identities.db.
 
 4) (Optional) Launch Web UIs
 - Chat Visualizer (read-only dashboard): port 5001
@@ -116,7 +116,7 @@ Visit:
 
 Web UI startup and dependencies:
 - Both starters auto-install the local dependencies (database_visualization/requirements.txt). Installs are serialized with a cross-process file lock to avoid race conditions when multiple processes bootstrap at the same time.
-- If $AGENTCHAT_PUBLIC_DATABLOCKS is not set, the UIs fall back to ./data inside the repo. They will still start even if the DB files don’t exist yet.
+- If $AGENTMESSAGE_PUBLIC_DATABLOCKS is not set, the UIs fall back to ./data inside the repo. They will still start even if the DB files don’t exist yet.
 
 Troubleshooting:
 - If you see intermittent pip/setuptools errors during auto-install (often due to concurrent bootstraps), either:
@@ -131,13 +131,13 @@ pip install -r /Users/batchlions/Developments/AgentPhone/agentmessage/database_v
 All tools are registered by AgentMessageMCPServer._setup_tools() in <mcfile name="mcp_server.py" path="/Users/batchlions/Developments/AgentPhone/agentmessage/mcp_server.py"></mcfile>.
 
 - register_recall_id(name?: string, description?: string, capabilities?: list) -> dict
-  - If identity exists in AGENTCHAT_MEMORY_PATH, returns it.
+  - If identity exists in AGENTMESSAGE_MEMORY_PATH, returns it.
   - Else requires all three params to create and persist a new identity.
   - Returns: { status, message, identity: {name, description, capabilities, did} }
   - Backed by <mcfile name="identity/tools.py" path="/Users/batchlions/Developments/AgentPhone/agentmessage/identity/tools.py"></mcfile> and <mcfile name="identity/identity_manager.py" path="/Users/batchlions/Developments/AgentPhone/agentmessage/identity/identity_manager.py"></mcfile>.
 
 - go_online() -> dict
-  - Publishes the current identity (from AGENTCHAT_MEMORY_PATH) into $AGENTCHAT_PUBLIC_DATABLOCKS/identities.db.
+  - Publishes the current identity (from AGENTMESSAGE_MEMORY_PATH) into $AGENTMESSAGE_PUBLIC_DATABLOCKS/identities.db.
   - Returns: { status, message, published_identity: {...}, database_path }
   - See <mcfile name="identity/tools.py" path="/Users/batchlions/Developments/AgentPhone/agentmessage/identity/tools.py"></mcfile>.
 
@@ -169,7 +169,7 @@ All tools are registered by AgentMessageMCPServer._setup_tools() in <mcfile name
 
 ## Data Layout
 
-Within $AGENTCHAT_PUBLIC_DATABLOCKS (created as needed):
+Within $AGENTMESSAGE_PUBLIC_DATABLOCKS (created as needed):
 - identities.db
   - Table identities(did PRIMARY KEY, name, description, capabilities(JSON text), created_at, updated_at)
 - chat_history.db
@@ -177,7 +177,7 @@ Within $AGENTCHAT_PUBLIC_DATABLOCKS (created as needed):
 - host.json
   - Ensured by check_or_create_host() on server start; also inserted/updated into identities.db
 
-Within AGENTCHAT_MEMORY_PATH:
+Within AGENTMESSAGE_MEMORY_PATH:
 - identity.json (private persisted identity for this agent)
 
 ## Web UIs
@@ -221,14 +221,14 @@ Key HTTP endpoints exposed by the Chat Interface backend (<mcfile name="database
 
 3) Register identity with parameters
 - Input: register_recall_id("CodeBuddy","Helpful coding agent",["code","docs"])
-- Expected: status="success", identity.did populated, persisted to AGENTCHAT_MEMORY_PATH
+- Expected: status="success", identity.did populated, persisted to AGENTMESSAGE_MEMORY_PATH
 
-4) Publish identity with AGENTCHAT_PUBLIC_DATABLOCKS unset
+4) Publish identity with AGENTMESSAGE_PUBLIC_DATABLOCKS unset
 - Input: go_online()
-- Expected: status="error", message asks to set AGENTCHAT_PUBLIC_DATABLOCKS
+- Expected: status="error", message asks to set AGENTMESSAGE_PUBLIC_DATABLOCKS
 
 5) Publish identity with memory empty
-- Input: go_online() (no identity in AGENTCHAT_MEMORY_PATH)
+- Input: go_online() (no identity in AGENTMESSAGE_MEMORY_PATH)
 - Expected: status="error", message asks to use register_recall_id first
 
 6) Publish identity successfully

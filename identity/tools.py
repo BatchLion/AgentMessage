@@ -86,14 +86,14 @@ def register_recall_id(
 def go_online() -> Dict[str, Any]:
     """Make agent identity information public and visible to other agents
     
-    This tool retrieves identity information from AGENTCHAT_MEMORY_PATH,
-    and publishes the identity to $AGENTCHAT_PUBLIC_DATABLOCKS/identities.db.
+    This tool retrieves identity information from AGENTMESSAGE_MEMORY_PATH,
+    and publishes the identity to $AGENTMESSAGE_PUBLIC_DATABLOCKS/identities.db.
     If identity information is empty, prompts to use register_recall_id tool first;
-    If AGENTCHAT_PUBLIC_DATABLOCKS is not set, prompts to add the environment variable definition in the MCP configuration file.
+    If AGENTMESSAGE_PUBLIC_DATABLOCKS is not set, prompts to add the environment variable definition in the MCP configuration file.
     
     Environment Variables:
-    - AGENTCHAT_MEMORY_PATH: Specifies the agent identity memory storage directory (read)
-    - AGENTCHAT_PUBLIC_DATABLOCKS: Specifies the public database directory (write identities.db)
+    - AGENTMESSAGE_MEMORY_PATH: Specifies the agent identity memory storage directory (read)
+    - AGENTMESSAGE_PUBLIC_DATABLOCKS: Specifies the public database directory (write identities.db)
     Returns:
         Dictionary containing operation status, message, published identity information, and database path, e.g.:
         {
@@ -108,12 +108,12 @@ def go_online() -> Dict[str, Any]:
             "database_path": "/absolute/path/to/identities.db"
         }
     """
-    # Check AGENTCHAT_MEMORY_PATH environment variable
-    memory_path = os.getenv('AGENTCHAT_MEMORY_PATH')
+    # Check AGENTMESSAGE_MEMORY_PATH environment variable
+    memory_path = os.getenv('AGENTMESSAGE_MEMORY_PATH')
     if not memory_path:
         return {
             "status": "error",
-            "message": "AGENTCHAT_MEMORY_PATH environment variable is not set"
+            "message": "AGENTMESSAGE_MEMORY_PATH environment variable is not set"
         }
     
     # Use IdentityManager to load identity information
@@ -122,7 +122,7 @@ def go_online() -> Dict[str, Any]:
     if not identity_manager.has_identity():
         return {
             "status": "error",
-            "message": "Identity information in AGENTCHAT_MEMORY_PATH is empty, please use register_recall_id tool to register identity information first, then retry"
+            "message": "Identity information in AGENTMESSAGE_MEMORY_PATH is empty, please use register_recall_id tool to register identity information first, then retry"
         }
     
     # Load identity information
@@ -134,22 +134,22 @@ def go_online() -> Dict[str, Any]:
         }
     
     try:
-        # Use AGENTCHAT_PUBLIC_DATABLOCKS environment variable to specify public database directory
-        public_dir_env = os.getenv('AGENTCHAT_PUBLIC_DATABLOCKS')
+        # Use AGENTMESSAGE_PUBLIC_DATABLOCKS environment variable to specify public database directory
+        public_dir_env = os.getenv('AGENTMESSAGE_PUBLIC_DATABLOCKS')
         if not public_dir_env:
             return {
                 "status": "error",
-                "message": "AGENTCHAT_PUBLIC_DATABLOCKS environment variable is not set, please add it to the MCP configuration file and retry"
+                "message": "AGENTMESSAGE_PUBLIC_DATABLOCKS environment variable is not set, please add it to the MCP configuration file and retry"
             }
         data_dir = Path(public_dir_env)
         if data_dir.exists() and not data_dir.is_dir():
             return {
                 "status": "error",
-                "message": f"AGENTCHAT_PUBLIC_DATABLOCKS points to a non-directory path: {str(data_dir)}"
+                "message": f"AGENTMESSAGE_PUBLIC_DATABLOCKS points to a non-directory path: {str(data_dir)}"
             }
         data_dir.mkdir(parents=True, exist_ok=True)
         
-        # Connect to $AGENTCHAT_PUBLIC_DATABLOCKS/identities.db database
+        # Connect to $AGENTMESSAGE_PUBLIC_DATABLOCKS/identities.db database
         db_path = data_dir / "identities.db"
         conn = sqlite3.connect(db_path)
         cursor = conn.cursor()

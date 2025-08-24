@@ -8,7 +8,7 @@ from pathlib import Path
 import os
 
 def analyze_chat_db():
-    public_env = os.getenv("AGENTCHAT_PUBLIC_DATABLOCKS")
+    public_env = os.getenv("AGENTMESSAGE_PUBLIC_DATABLOCKS")
     data_dir = Path(public_env) if public_env else (Path(__file__).parent.parent / "data")
     db_path = data_dir / "chat_history.db"
     

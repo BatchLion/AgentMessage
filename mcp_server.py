@@ -42,12 +42,12 @@ class AgentMessageMCPServer:
             - description: Agent description (optional, required when creating a new identity)
             - capabilities: Agent capabilities list (optional, required when creating a new identity)
             Functionality:
-            - Use the identity memory directory specified by the AGENTCHAT_MEMORY_PATH environment variable
+            - Use the identity memory directory specified by the AGENTMESSAGE_MEMORY_PATH environment variable
             - If the identity file exists, return the existing identity (ignore input parameters)
             - If the directory is empty and all parameters are provided, create a new agent identity
             - If the directory is empty and parameters are not provided, prompt the user to supply required information
             Environment variables:
-            - AGENTCHAT_MEMORY_PATH: identity memory storage directory
+            - AGENTMESSAGE_MEMORY_PATH: identity memory storage directory
             Return format:
             - A dictionary containing status, message, and identity information
             Use cases:
@@ -61,19 +61,19 @@ class AgentMessageMCPServer:
         async def go_online() -> dict:
             """Publish the agent identity to make it discoverable by other agents
             Functionality:
-            - Retrieve agent identity from AGENTCHAT_MEMORY_PATH
-            - If identity exists, publish it to $AGENTCHAT_PUBLIC_DATABLOCKS/identities.db
+            - Retrieve agent identity from AGENTMESSAGE_MEMORY_PATH
+            - If identity exists, publish it to $AGENTMESSAGE_PUBLIC_DATABLOCKS/identities.db
             - If identity is empty, prompt to use register_recall_id first
-            - If AGENTCHAT_PUBLIC_DATABLOCKS is not set, prompt to define it in the MCP configuration file
+            - If AGENTMESSAGE_PUBLIC_DATABLOCKS is not set, prompt to define it in the MCP configuration file
             Environment variables:
-            - AGENTCHAT_MEMORY_PATH: identity memory storage directory (read)
-            - AGENTCHAT_PUBLIC_DATABLOCKS: public database directory (write identities.db)
+            - AGENTMESSAGE_MEMORY_PATH: identity memory storage directory (read)
+            - AGENTMESSAGE_PUBLIC_DATABLOCKS: public database directory (write identities.db)
             Return format:
             - A dictionary containing operation status, message, and published identity, e.g.:
               { "status": "...", "message": "Explanation", "published_identity": {...} }
             Notes:
             - Ensure identity has been registered using register_recall_id before publishing
-            - Ensure AGENTCHAT_PUBLIC_DATABLOCKS is set and points to a writable directory
+            - Ensure AGENTMESSAGE_PUBLIC_DATABLOCKS is set and points to a writable directory
             - Published information is stored locally for other agents to query
             """
             return _go_online()
@@ -83,7 +83,7 @@ class AgentMessageMCPServer:
         async def collect_identities(limit: int | None = None) -> dict:
             """Collect identities from identities.db database
             Path:
-            - $AGENTCHAT_PUBLIC_DATABLOCKS/identities.db
+            - $AGENTMESSAGE_PUBLIC_DATABLOCKS/identities.db
             
             Parameters:
             - limit: Optional, limit the number of records returned
@@ -107,11 +107,11 @@ class AgentMessageMCPServer:
             }
             """
             try:
-                public_dir_env = os.getenv("AGENTCHAT_PUBLIC_DATABLOCKS")
+                public_dir_env = os.getenv("AGENTMESSAGE_PUBLIC_DATABLOCKS")
                 if not public_dir_env:
                     return {
                         "status": "error",
-                        "message": "AGENTCHAT_PUBLIC_DATABLOCKS environment variable is not set. Please define it in the MCP configuration file."
+                        "message": "AGENTMESSAGE_PUBLIC_DATABLOCKS environment variable is not set. Please define it in the MCP configuration file."
                     }
                 
                 db_path = Path(public_dir_env) / "identities.db"
@@ -183,7 +183,7 @@ class AgentMessageMCPServer:
             poll_interval: int = 5,
             timeout: int = 300
         ) -> dict:
-            """Send messages to each receiver in the receiver_dids list and store in $AGENTCHAT_PUBLIC_DATABLOCKS/chat_history.db
+            """Send messages to each receiver in the receiver_dids list and store in $AGENTMESSAGE_PUBLIC_DATABLOCKS/chat_history.db
             
             Parameters:
             - receiver_dids: List of receiver DIDs (cannot be empty)
@@ -199,7 +199,7 @@ class AgentMessageMCPServer:
             - Generate timestamp in Beijing time (UTC+8, format YYYY-MM-DD HH:MM:SS)
             - Calculate group_id (create set from sender_did and receiver_dids, sort and take first 16 chars of sha256, prefix with grp_)
             - Parse @ mentions (supports @all, @receiverDID, @receiverName)
-            - Save message to chat_history table in $AGENTCHAT_PUBLIC_DATABLOCKS/chat_history.db
+            - Save message to chat_history table in $AGENTMESSAGE_PUBLIC_DATABLOCKS/chat_history.db
             - If wait_for_replies=True, poll and wait for all receivers to reply
             
             Returns:
@@ -255,7 +255,7 @@ class AgentMessageMCPServer:
             
             Behavior:
             - Get local identity DID
-            - Find messages containing local DID as receiver in $AGENTCHAT_PUBLIC_DATABLOCKS/chat_history.db
+            - Find messages containing local DID as receiver in $AGENTMESSAGE_PUBLIC_DATABLOCKS/chat_history.db
             - Determine if message is read based on read_status field, mark is_new
             - Set read status to true for current user in found unread messages
             - When returning, convert DID to name (sender_name, receiver_names, mention_names), while keeping original DID fields (sender_did, receiver_dids, mention_dids)
@@ -279,7 +279,7 @@ class AgentMessageMCPServer:
                 # New: Poll when no new messages, until timeout or new messages
                 start_time = time.time()
                 while True:
-                    # Initialize/ locate chat database (using $AGENTCHAT_PUBLIC_DATABLOCKS)
+                    # Initialize/ locate chat database (using $AGENTMESSAGE_PUBLIC_DATABLOCKS)
                     db_path = init_chat_history_db()
                     conn = sqlite3.connect(db_path)
                     try:
@@ -301,7 +301,7 @@ class AgentMessageMCPServer:
 
                         # Prepare identities.db path for DID->name conversion
                         did_to_name_cache: dict[str, str] = {}
-                        public_dir_env = os.getenv("AGENTCHAT_PUBLIC_DATABLOCKS")
+                        public_dir_env = os.getenv("AGENTMESSAGE_PUBLIC_DATABLOCKS")
                         id_db_path = Path(public_dir_env) / "identities.db" if public_dir_env else None
                         id_conn = None
                         if id_db_path and id_db_path.exists():
@@ -488,15 +488,15 @@ class AgentMessageMCPServer:
 def check_or_create_host() -> dict | None:
     """Check or create HOST information.
     Behavior:
-    - Check if $AGENTCHAT_PUBLIC_DATABLOCKS/host.json exists and contains name, description, did
+    - Check if $AGENTMESSAGE_PUBLIC_DATABLOCKS/host.json exists and contains name, description, did
     - If exists and complete: print prompt and return the information
     - If not exists or incomplete: generate DID, create and save to host.json, then print and return
     - Add HOST information to identities.db database
     """
     try:
-        public_dir = os.getenv("AGENTCHAT_PUBLIC_DATABLOCKS")
+        public_dir = os.getenv("AGENTMESSAGE_PUBLIC_DATABLOCKS")
         if not public_dir:
-            print("Warning: AGENTCHAT_PUBLIC_DATABLOCKS environment variable is not set. Cannot create/read host.json.")
+            print("Warning: AGENTMESSAGE_PUBLIC_DATABLOCKS environment variable is not set. Cannot create/read host.json.")
             return None
 
         public_path = Path(public_dir)

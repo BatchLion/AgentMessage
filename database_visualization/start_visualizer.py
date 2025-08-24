@@ -78,7 +78,7 @@ def install_requirements():
 
 def check_database():
     """Check if database exists"""
-    public_env = os.getenv("AGENTCHAT_PUBLIC_DATABLOCKS")
+    public_env = os.getenv("AGENTMESSAGE_PUBLIC_DATABLOCKS")
     data_dir = Path(public_env) if public_env else (Path(__file__).parent.parent / "data")
     db_path = data_dir / "chat_history.db"
     if not db_path.exists():

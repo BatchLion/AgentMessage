@@ -20,7 +20,7 @@ async def _send_message(
     timeout: int = 300 # - timeout: Timeout for waiting in seconds (default 300 seconds)
 ) -> dict:
     """
-    Send message to server and store it in $AGENTCHAT_PUBLIC_DATABLOCKS/chat_history.db
+    Send message to server and store it in $AGENTMESSAGE_PUBLIC_DATABLOCKS/chat_history.db
     """
     # Parameter validation
     if not isinstance(receiver_dids, list) or len(receiver_dids) == 0:
@@ -57,11 +57,11 @@ async def _send_message(
     
     # New: Verify if all receiver_dids exist in identities.db
     try:
-        public_dir_env = os.getenv("AGENTCHAT_PUBLIC_DATABLOCKS")
+        public_dir_env = os.getenv("AGENTMESSAGE_PUBLIC_DATABLOCKS")
         if not public_dir_env:
             return {
                 "status": "error",
-                "message": "AGENTCHAT_PUBLIC_DATABLOCKS environment variable not set, please add this environment variable definition in MCP configuration file"
+                "message": "AGENTMESSAGE_PUBLIC_DATABLOCKS environment variable not set, please add this environment variable definition in MCP configuration file"
             }
         id_db_path = Path(public_dir_env) / "identities.db"
         if not id_db_path.exists():
@@ -136,11 +136,11 @@ async def _send_message(
     # New: Exclude sender from receiver list validation
     if sender_did in receiver_dids:
         try:
-            public_dir_env = os.getenv("AGENTCHAT_PUBLIC_DATABLOCKS")
+            public_dir_env = os.getenv("AGENTMESSAGE_PUBLIC_DATABLOCKS")
             if not public_dir_env:
                 return {
                     "status": "error",
-                    "message": "AGENTCHAT_PUBLIC_DATABLOCKS environment variable not set, please add this environment variable definition in MCP configuration file"
+                    "message": "AGENTMESSAGE_PUBLIC_DATABLOCKS environment variable not set, please add this environment variable definition in MCP configuration file"
                 }
             id_db_path = Path(public_dir_env) / "identities.db"
             if not id_db_path.exists():
@@ -249,7 +249,7 @@ async def _send_message(
             
             # Then match based on name (read receiver name mapping from identities.db)
             try:
-                public_dir_env = os.getenv("AGENTCHAT_PUBLIC_DATABLOCKS")
+                public_dir_env = os.getenv("AGENTMESSAGE_PUBLIC_DATABLOCKS")
                 if public_dir_env:
                     id_db_path = Path(public_dir_env) / "identities.db"
                     if id_db_path.exists():
@@ -278,7 +278,7 @@ async def _send_message(
     
     # Write to chat_history.db
     try:
-        # Initialize database (internally checks if AGENTCHAT_PUBLIC_DATABLOCKS is set)
+        # Initialize database (internally checks if AGENTMESSAGE_PUBLIC_DATABLOCKS is set)
         db_path = init_chat_history_db()
         
         # Initialize read_status: mark all receivers as unread (false)

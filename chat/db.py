@@ -1,5 +1,5 @@
 """Chat history database initialization and management (Step 2.1)
-- Database path: $AGENTCHAT_PUBLIC_DATABLOCKS/chat_history.db
+- Database path: $AGENTMESSAGE_PUBLIC_DATABLOCKS/chat_history.db
 - Table: chat_history
 - Fields:
   - message_id: unique message ID
@@ -13,7 +13,7 @@
 
 Notes:
 - This file only initializes the database and table schema; it does not implement message writing logic.
-- If AGENTCHAT_PUBLIC_DATABLOCKS is not set, an exception is raised. Please define this environment variable in the MCP configuration file.
+- If AGENTMESSAGE_PUBLIC_DATABLOCKS is not set, an exception is raised. Please define this environment variable in the MCP configuration file.
 """
 
 import os
@@ -22,23 +22,23 @@ from pathlib import Path
 
 
 def get_data_dir() -> Path:
-    """Return the data directory path: $AGENTCHAT_PUBLIC_DATABLOCKS"""
-    public_dir_env = os.getenv("AGENTCHAT_PUBLIC_DATABLOCKS")
+    """Return the data directory path: $AGENTMESSAGE_PUBLIC_DATABLOCKS"""
+    public_dir_env = os.getenv("AGENTMESSAGE_PUBLIC_DATABLOCKS")
     if not public_dir_env:
-        raise EnvironmentError("AGENTCHAT_PUBLIC_DATABLOCKS environment variable is not set. Please define it in the MCP configuration file.")
+        raise EnvironmentError("AGENTMESSAGE_PUBLIC_DATABLOCKS environment variable is not set. Please define it in the MCP configuration file.")
     data_dir = Path(public_dir_env)
     if data_dir.exists() and not data_dir.is_dir():
-        raise NotADirectoryError(f"AGENTCHAT_PUBLIC_DATABLOCKS points to a non-directory: {str(data_dir)}")
+        raise NotADirectoryError(f"AGENTMESSAGE_PUBLIC_DATABLOCKS points to a non-directory: {str(data_dir)}")
     return data_dir
 
 
 def get_chat_db_path() -> Path:
-    """Return the full path to $AGENTCHAT_PUBLIC_DATABLOCKS/chat_history.db"""
+    """Return the full path to $AGENTMESSAGE_PUBLIC_DATABLOCKS/chat_history.db"""
     return get_data_dir() / "chat_history.db"
 
 
 def init_chat_history_db() -> Path:
-    """Initialize $AGENTCHAT_PUBLIC_DATABLOCKS/chat_history.db and necessary tables and indexes"""
+    """Initialize $AGENTMESSAGE_PUBLIC_DATABLOCKS/chat_history.db and necessary tables and indexes"""
     data_dir = get_data_dir()
     data_dir.mkdir(parents=True, exist_ok=True)
 

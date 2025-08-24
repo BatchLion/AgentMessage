@@ -19,7 +19,7 @@ app.config['SECRET_KEY'] = 'chat_visualizer_secret_key'
 socketio = SocketIO(app, cors_allowed_origins="*")
 
 # Database path
-public_env = os.getenv("AGENTCHAT_PUBLIC_DATABLOCKS")
+public_env = os.getenv("AGENTMESSAGE_PUBLIC_DATABLOCKS")
 data_dir = Path(public_env) if public_env else (Path(__file__).parent.parent / "data")
 DB_PATH = data_dir / "chat_history.db"
 

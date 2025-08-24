@@ -32,8 +32,8 @@ flowchart TD
   end
 
   subgraph Storage
-    M[AGENTCHAT_MEMORY_PATH\nidentity.json]
-    P[AGENTCHAT_PUBLIC_DATABLOCKS\n- identities.db\n- chat_history.db\n- host.json]
+    M[AGENTMESSAGE_MEMORY_PATH\nidentity.json]
+    P[AGENTMESSAGE_PUBLIC_DATABLOCKS\n- identities.db\n- chat_history.db\n- host.json]
   end
 
   subgraph WebUI[Web UIs]
@@ -53,8 +53,8 @@ flowchart TD
 
 ## 环境变量
 
-- AGENTCHAT_MEMORY_PATH：智能体身份的本地私有内存目录（读取）。身份管理器在此加载/保存 identity.json。
-- AGENTCHAT_PUBLIC_DATABLOCKS：用于发现与会话的公共数据目录（读写）。将存储：
+- AGENTMESSAGE_MEMORY_PATH：智能体身份的本地私有内存目录（读取）。身份管理器在此加载/保存 identity.json。
+- AGENTMESSAGE_PUBLIC_DATABLOCKS：用于发现与会话的公共数据目录（读写）。将存储：
   - identities.db（已发布的身份）
   - chat_history.db（消息）
   - host.json（服务器启动时引导 HOST 身份）
@@ -70,8 +70,8 @@ flowchart TD
       "command": "uvx",
       "args": ["--from", "path/to/agentmessage", "agentmessage"],
       "env": {
-        "AGENTCHAT_MEMORY_PATH": "path/to/memory",
-        "AGENTCHAT_PUBLIC_DATABLOCKS": "path/to/public/datablocks"
+        "AGENTMESSAGE_MEMORY_PATH": "path/to/memory",
+        "AGENTMESSAGE_PUBLIC_DATABLOCKS": "path/to/public/datablocks"
       }
     }
   }
@@ -95,7 +95,7 @@ flowchart TD
 - 使用 MCP 客户端调用 register_recall_id，并传入 name、description、capabilities。
 
 3）通过 go_online 发布身份
-- 将当前身份写入 $AGENTCHAT_PUBLIC_DATABLOCKS/identities.db。
+- 将当前身份写入 $AGENTMESSAGE_PUBLIC_DATABLOCKS/identities.db。
 
 4）可选：启动 Web 界面
 - Chat Visualizer（只读仪表盘）：5001 端口
@@ -116,7 +116,7 @@ python /Users/batchlions/Developments/AgentPhone/agentmessage/database_visualiza
 
 Web UI 启动与依赖说明：
 - 两个启动脚本都会自动安装本地依赖（database_visualization/requirements.txt），并通过跨进程文件锁串行化安装，避免并发引起的安装/卸载竞争。
-- 若未设置 $AGENTCHAT_PUBLIC_DATABLOCKS，Web UI 会回落到仓库内的 ./data；即使初始没有数据库文件，也会正常启动（只是暂时显示为空）。
+- 若未设置 $AGENTMESSAGE_PUBLIC_DATABLOCKS，Web UI 会回落到仓库内的 ./data；即使初始没有数据库文件，也会正常启动（只是暂时显示为空）。
 
 故障排查：
 - 如在自动安装阶段偶发 pip/setuptools 错误（通常源于并发引导），可以：
@@ -131,13 +131,13 @@ pip install -r /Users/batchlions/Developments/AgentPhone/agentmessage/database_v
 所有工具由 <mcfile name="mcp_server.py" path="/Users/batchlions/Developments/AgentPhone/agentmessage/mcp_server.py"></mcfile> 中的 AgentMessageMCPServer._setup_tools() 注册。
 
 - register_recall_id(name?: string, description?: string, capabilities?: list) -> dict
-  - 如果 AGENTCHAT_MEMORY_PATH 中已存在身份，则直接返回；
+  - 如果 AGENTMESSAGE_MEMORY_PATH 中已存在身份，则直接返回；
   - 否则需提供上述三个参数以创建并持久化新身份；
   - 返回：{ status, message, identity: {name, description, capabilities, did} }
   - 实现参考 <mcfile name="identity/tools.py" path="/Users/batchlions/Developments/AgentPhone/agentmessage/identity/tools.py"></mcfile> 与 <mcfile name="identity/identity_manager.py" path="/Users/batchlions/Developments/AgentPhone/agentmessage/identity/identity_manager.py"></mcfile>。
 
 - go_online() -> dict
-  - 将当前身份（读取自 AGENTCHAT_MEMORY_PATH）发布到 $AGENTCHAT_PUBLIC_DATABLOCKS/identities.db；
+  - 将当前身份（读取自 AGENTMESSAGE_MEMORY_PATH）发布到 $AGENTMESSAGE_PUBLIC_DATABLOCKS/identities.db；
   - 返回：{ status, message, published_identity: {...}, database_path }
   - 详见 <mcfile name="identity/tools.py" path="/Users/batchlions/Developments/AgentPhone/agentmessage/identity/tools.py"></mcfile>。
 
@@ -169,7 +169,7 @@ pip install -r /Users/batchlions/Developments/AgentPhone/agentmessage/database_v
 
 ## 数据布局
 
-位于 $AGENTCHAT_PUBLIC_DATABLOCKS（必要时自动创建）：
+位于 $AGENTMESSAGE_PUBLIC_DATABLOCKS（必要时自动创建）：
 - identities.db
   - 表 identities（did 主键, name, description, capabilities（JSON 文本）, created_at, updated_at）
 - chat_history.db
@@ -177,7 +177,7 @@ pip install -r /Users/batchlions/Developments/AgentPhone/agentmessage/database_v
 - host.json
   - 服务器启动时由 check_or_create_host() 确保存在；同时会插入/更新到 identities.db
 
-位于 AGENTCHAT_MEMORY_PATH：
+位于 AGENTMESSAGE_MEMORY_PATH：
 - identity.json（该智能体的私有持久化身份）
 
 ## Web 界面
@@ -221,14 +221,14 @@ Chat Interface 后端的关键 HTTP 端点（见 <mcfile name="database_visualiz
 
 3）带参数注册身份
 - 输入：register_recall_id("CodeBuddy","Helpful coding agent",["code","docs"])
-- 期望：status="success"，identity.did 已生成并持久化至 AGENTCHAT_MEMORY_PATH
+- 期望：status="success"，identity.did 已生成并持久化至 AGENTMESSAGE_MEMORY_PATH
 
-4）未设置 AGENTCHAT_PUBLIC_DATABLOCKS 即发布身份
+4）未设置 AGENTMESSAGE_PUBLIC_DATABLOCKS 即发布身份
 - 输入：go_online()
-- 期望：status="error"，提示需要设置 AGENTCHAT_PUBLIC_DATABLOCKS
+- 期望：status="error"，提示需要设置 AGENTMESSAGE_PUBLIC_DATABLOCKS
 
 5）内存目录中无身份即发布
-- 输入：go_online()（AGENTCHAT_MEMORY_PATH 中无 identity）
+- 输入：go_online()（AGENTMESSAGE_MEMORY_PATH 中无 identity）
 - 期望：status="error"，提示需先使用 register_recall_id
 
 6）成功发布身份

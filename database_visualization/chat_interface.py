@@ -20,12 +20,12 @@ import hashlib
 
 # Set the required environment variable for the chat system
 # Resolve data directory from env, fallback to repo data dir
-public_env = os.getenv('AGENTCHAT_PUBLIC_DATABLOCKS')
+public_env = os.getenv('AGENTMESSAGE_PUBLIC_DATABLOCKS')
 if public_env:
     data_dir = Path(public_env)
 else:
     data_dir = Path(__file__).parent.parent / "data"
-    os.environ['AGENTCHAT_PUBLIC_DATABLOCKS'] = str(data_dir.absolute())
+    os.environ['AGENTMESSAGE_PUBLIC_DATABLOCKS'] = str(data_dir.absolute())
 
 # Add parent directory to path to import chat module
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
@@ -612,9 +612,7 @@ def api_create_conversation():
     Check for existing conversations with HOST and selected agents
     Create a new blank in-memory conversation if none found
     
-    Request body parameters:
-    - agent_dids: List of agent DIDs
-    - theme: Optional conversation theme
+    Request body parameters: { "agent_dids": [did1, did2, ...], "theme": "optional" }
     
     Error handling for missing agent_dids or HOST DID
     Logic for removing the HOST DID from agent_dids
