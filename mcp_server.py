@@ -179,11 +179,19 @@ class AgentMessageMCPServer:
         async def send_message(
             receiver_dids: list[str],
             message_data: dict,
-            wait_for_replies: bool = False,
+            wait_for_replies: bool = True,
             poll_interval: int = 5,
             timeout: int = 300
         ) -> dict:
-            """Send messages to each receiver in the receiver_dids list and store in $AGENTMESSAGE_PUBLIC_DATABLOCKS/message_history.db
+            """
+            ***Please never forget to reply the message sender after receiving a new message, unless the message requires no replies.***
+            Send messages to other agents, i.e. each receiver in the receiver_dids list.
+            Used to chat or communicate or interactive or cooperate with other agents.
+            Used to discuss with other agents about a specific topic.
+            When chatting or discussing with other agents, you can wait for replies with poll_interval < 5 and timeout > 300.
+            When cooperating with other agents under a specific task, set poll_interval < 5 seconds and timeout = 0 seconds but never forget to reply the message sender after finishing the subtask relevant.
+            If you wait for replies, please reply all the receivers after each receiver replies or timeout.
+            Use @ mentions to mention other agents (supports @all, @receiverDID, @receiverName)
             
             Parameters:
             - receiver_dids: List of receiver DIDs (cannot be empty)
@@ -191,16 +199,6 @@ class AgentMessageMCPServer:
             - wait_for_replies: Whether to wait for all receivers to reply (default True)
             - poll_interval: Polling interval in seconds (default 5 seconds)
             - timeout: Wait timeout in seconds (default 300 seconds)
-            
-            Processing flow:
-            - Read sender DID (current agent)
-            - Verify receiver DIDs exist in identities.db database
-            - Generate unique message_id (format: msg_{epoch_ms}_{first 12 chars of sha256})
-            - Generate timestamp in Beijing time (UTC+8, format YYYY-MM-DD HH:MM:SS)
-            - Calculate group_id (create set from sender_did and receiver_dids, sort and take first 16 chars of sha256, prefix with grp_)
-            - Parse @ mentions (supports @all, @receiverDID, @receiverName)
-            - Save message to message_history table in $AGENTMESSAGE_PUBLIC_DATABLOCKS/message_history.db
-            - If wait_for_replies=True, poll and wait for all receivers to reply
             
             Returns:
             {
@@ -245,21 +243,65 @@ class AgentMessageMCPServer:
                                        wait_for_replies, poll_interval, timeout)
 
         @self.mcp.tool()
-        async def check_new_messages(limit: int = 10, poll_interval: int = 5, timeout: int | None = None) -> dict:
-            """Check new messages, return unread messages based on read_status field of each message, and mark current user as read after reading
+        async def check_new_messages(
+                poll_interval: int = 5,
+                timeout: int | None = None
+            ) -> dict:
+            """
+            Check new messages sent to you, return unread messages based on read_status field of each message, and mark current user as read after reading.
+            Used to chat or communicate or interactive or cooperate with other agents.
+            Never forget to reply the message sender after receiving the message unless the message requires no replies.
+            When replying, if the message has 2 or more recipients, please send the reply to the sender and all the other recipients (excluding the sender itself).
+            When chatting, set poll_interval < 5 seconds and timeout > 300 seconds.
+            When cooperating with other agents under a specific task, set poll_interval < 5 seconds and timeout = 0 seconds but never forget to reply the message sender after finishing the subtask relevant.
             
             Parameters:
-            - limit: Maximum number of read messages returned per group (default 10). Returns "all unread messages + last limit read messages", sorted by time ascending; when non-positive, no limit (returns all messages).
             - poll_interval: Polling interval in seconds when no new messages (default 5 seconds)
             - timeout: Polling timeout in seconds waiting for new messages. When None, will wait indefinitely until new messages appear.
             
-            Behavior:
-            - Get local identity DID
-            - Find messages containing local DID as receiver in $AGENTMESSAGE_PUBLIC_DATABLOCKS/message_history.db
-            - Determine if message is read based on read_status field, mark is_new
-            - Set read status to true for current user in found unread messages
-            - When returning, convert DID to name (sender_name, receiver_names, mention_names), while keeping original DID fields (sender_did, receiver_dids, mention_dids)
+            Return:
+            - success:
+            {
+                "status": "success",
+                "message": "There are new messages. Please use send_message to reply.",
+                "groups": [
+                {
+                    "group_id": str,
+                    "new_count": int,
+                    "messages": [
+                    {
+                        "message_id": str,
+                        "timestamp": int|float,
+                        "sender_did": str,
+                        "sender_name": str,
+                        "receiver_dids": list[str],
+                        "receiver_names": list[str],
+                        "message_data": dict,
+                        "mention_dids": list[str],
+                        "mention_names": list[str],
+                        "is_new": bool
+                    }
+                    ]
+                }
+                ],
+                "database_path": str,
+                "prompt": str
+            }
+            - timeout:
+            {
+                "status": "timeout",
+                "message": "Timeout waiting for new messages.",
+                "groups": [],
+                "database_path": str,
+                "prompt": "There are no new messages."
+            }
+            - error:
+            {
+                "status": "error",
+                "message": str
+            }
             """
+            limit: int = 0  # limit: Maximum number of read messages returned per group (default 10). Returns "all unread messages + last limit read messages", sorted by time ascending; when non-positive, no limit (returns all messages).
             try:
                 # Get local identity DID
                 identity_manager = IdentityManager()
@@ -365,6 +407,8 @@ class AgentMessageMCPServer:
                             # Select last limit read messages
                             if isinstance(limit, int) and limit > 0:
                                 selected_read = read_items[-limit:]
+                            elif isinstance(limit, int) and limit == 0:
+                                selected_read = []
                             else:
                                 selected_read = read_items
 
