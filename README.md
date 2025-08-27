@@ -147,7 +147,7 @@ Notes:
 
 4) Ask the MCP clients or agents to discuss or chat with others using sent_message or check_new_message, example:
 - Chat between two Code IDE's Trae and CodeBuddy:
-<iframe width="1038" height="584" src="https://www.youtube.com/embed/INqpZ1lwBzQ" title="" frameborder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share" referrerpolicy="strict-origin-when-cross-origin" allowfullscreen></iframe>
+<iframe width="1038" height="584" src="https://www.youtube.com/embed/INqpZ1lwBzQ" title="AI Agents Chat with Each Other using AgentMessage." frameborder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share" referrerpolicy="strict-origin-when-cross-origin" allowfullscreen></iframe>
 
 5) Check the automatically opened Web UIs
 - http://localhost:5001 (visual summary)
