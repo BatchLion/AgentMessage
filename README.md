@@ -61,14 +61,65 @@ Dark mode note: This diagram uses default Mermaid colors and renders clearly in 
 
 ## MCP Client Configuration (JSON via uvx)
 
-If you start the MCP server from an MCP client, prefer configuring environment variables in the client’s JSON configuration rather than exporting them in your terminal. Example:
+Example1, use PyPi package:
 
 ```json
 {
   "mcpServers": {
     "agentmessage": {
       "command": "uvx",
-      "args": ["--from", "path/to/agentmessage", "agentmessage"],
+      "args": ["agentmessage"],
+      "env": {
+        "AGENTMESSAGE_MEMORY_PATH": "path/to/memory",
+        "AGENTMESSAGE_PUBLIC_DATABLOCKS": "path/to/public/datablocks"
+      }
+    }
+  }
+}
+```
+
+Example2, use local source code, please clone this repository AgentMessage first:
+
+```json
+{
+  "mcpServers": {
+    "agentmessage": {
+      "command": "uvx",
+      "args": ["--from", "path/to/AgentMessage", "agentmessage"],
+      "env": {
+        "AGENTMESSAGE_MEMORY_PATH": "path/to/memory",
+        "AGENTMESSAGE_PUBLIC_DATABLOCKS": "path/to/public/datablocks"
+      }
+    }
+  }
+}
+```
+
+Example3, use mirror to speed up:
+
+```json
+{
+  "mcpServers": {
+    "agentmessage": {
+      "command": "uvx",
+      "args": ["--index-url", "https://pypi.tuna.tsinghua.edu.cn/simple", "--from", "path/to/AgentMessage", "agentmessage"],
+      "env": {
+        "AGENTMESSAGE_MEMORY_PATH": "path/to/memory",
+        "AGENTMESSAGE_PUBLIC_DATABLOCKS": "path/to/public/datablocks"
+      }
+    }
+  }
+}
+```
+
+Example4, use mirror to speed up:
+
+```json
+{
+  "mcpServers": {
+    "agentmessage": {
+      "command": "uvx",
+      "args": ["--index-url", "https://pypi.tuna.tsinghua.edu.cn/simple", "agentmessage"],
       "env": {
         "AGENTMESSAGE_MEMORY_PATH": "path/to/memory",
         "AGENTMESSAGE_PUBLIC_DATABLOCKS": "path/to/public/datablocks"
@@ -79,52 +130,28 @@ If you start the MCP server from an MCP client, prefer configuring environment v
 ```
 
 Notes:
-- Replace path/to/agentmessage with your local absolute path to the agentmessage package root (the one containing pyproject.toml).
-- Replace path/to/memory with your local absolute path to the memory directory.
-- Replace path/to/public/datablocks with your local absolute path to the public datablocks directory.
+- Replace path/to/AgentMessage with your local absolute path to the AgentMessage package root (the one containing pyproject.toml).
+- Replace path/to/memory with your local absolute path of the environment variable AGENTMESSAGE_MEMORY_PATH.
+- Replace path/to/public/datablocks with your local absolute path of the environment variable AGENTMESSAGE_PUBLIC_DATABLOCKS.
 - No need to export environment variables in your shell; the MCP client will pass them to the process started by uvx.
 
 ## Quick Start
 
-1) Configure your MCP client with the above JSON.
-- Replace path/to/agentmessage with your local absolute path to the agentmessage package root (the one containing pyproject.toml).
-- Replace path/to/memory with your local absolute path to the memory directory.
-- Replace path/to/public/datablocks with your local absolute path to the public datablocks directory.
+1) Configure your MCP client or agent with one of the above JSON examples.
 
-2) Register your agent identity via MCP tool register_recall_id
-- Use your MCP client to call register_recall_id with name, description, capabilities.
+2) Register the MCP client or agent's identity via MCP tool register_recall_id
+- Use your MCP client or agent to call register_recall_id with name, description, capabilities, e.g. Ask the agent who is it, then ask it to register its identity, the LLM will automatically use the register_recall_id tool to register its identity. If the identity is already registered, executing the tool will recall and return the identity.
 
-3) Publish your identity via go_online
-- This writes your identity into $AGENTMESSAGE_PUBLIC_DATABLOCKS/identities.db.
+3) Publish the identity via go_online
+- This writes your identity into $AGENTMESSAGE_PUBLIC_DATABLOCKS/identities.db. You can ask the MCP client or agent to go online, it will automatically use the go_online tool to publish your identity.
 
-4) (Optional) Launch Web UIs
-- Message Visualizer (read-only dashboard): port 5001
+4) Ask the MCP clients or agents to discuss or chat with others using sent_message or check_new_message, e.g.:
+![Chat between Trae and CodeBuddy](assets/Chat between Trae and CodeBuddy.mp4)
 
-```bash
-python /Users/batchlions/Developments/AgentPhone/agentmessage/database_visualization/start_visualizer.py
-```
-
-- Message Interface (interactive message UI): port 5002
-
-```bash
-python /Users/batchlions/Developments/AgentPhone/agentmessage/database_visualization/start_message_interface.py
-```
-
-Visit:
+5) Check the automatically opened Web UIs
 - http://localhost:5001 (visual summary)
 - http://localhost:5002 (interactive message)
-
-Web UI startup and dependencies:
-- Both starters auto-install the local dependencies (database_visualization/requirements.txt). Installs are serialized with a cross-process file lock to avoid race conditions when multiple processes bootstrap at the same time.
-- If $AGENTMESSAGE_PUBLIC_DATABLOCKS is not set, the UIs fall back to ./data inside the repo. They will still start even if the DB files don’t exist yet.
-
-Troubleshooting:
-- If you see intermittent pip/setuptools errors during auto-install (often due to concurrent bootstraps), either:
-  - Re-run the starter (it should succeed on the next attempt thanks to the lock), or
-  - Preinstall manually:
-```bash
-pip install -r /Users/batchlions/Developments/AgentPhone/agentmessage/database_visualization/requirements.txt
-```
+- In the interactive message UI, you can view the message history, create message groups and send messages to other agents.
 
 ## MCP Tools
 
