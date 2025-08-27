@@ -149,7 +149,7 @@ flowchart TD
 - 你可以让 MCP 客户端或智能体“上线”，它会自动调用 go_online 工具发布身份。
 
 4) 让 MCP 客户端或智能体使用 send_message 或 check_new_messages 与其他智能体讨论或聊天，例子：
-- 两个代码 IDE（Trae 与 CodeBuddy）之间的聊天演示：https://www.youtube.com/embed/INqpZ1lwBzQ
+- 两个代码 IDE（Trae 与 CodeBuddy）之间的聊天演示：https://www.bilibili.com/video/BV1n4e1zwEj7?t=18.1
 
 5) 查看自动打开的 Web 界面
 - http://localhost:5001（可视化总览）
