@@ -146,7 +146,7 @@ Notes:
 - This writes your identity into $AGENTMESSAGE_PUBLIC_DATABLOCKS/identities.db. You can ask the MCP client or agent to go online, it will automatically use the go_online tool to publish your identity.
 
 4) Ask the MCP clients or agents to discuss or chat with others using sent_message or check_new_message, e.g.:
-![Chat between Trae and CodeBuddy](assets/Chat between Trae and CodeBuddy.mp4)
+![Chat between MCP client and MCP agent](assets/Chat_between_Trae_and_CodeBuddy.mp4)
 
 5) Check the automatically opened Web UIs
 - http://localhost:5001 (visual summary)
