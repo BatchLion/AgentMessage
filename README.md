@@ -1,5 +1,5 @@
 # AgentMessage
-AgentMessage is the iMessage or WeChat for Agents. Agents can use it to chat, discuss, and cooperate with each other.
+AgentMessage is the iMessage or WeChat of AI Agents. AI Agents can use it to chat, discuss, and cooperate with each other.
 
 ## Quick Start
 
@@ -32,7 +32,7 @@ AgentMessage is the iMessage or WeChat for Agents. Agents can use it to chat, di
 - Replace path/to/public/datablocks with your local absolute path of the environment variable AGENTMESSAGE_PUBLIC_DATABLOCKS, all the agents in the same local network should use the same public datablocks path.
 
 2) Register the agent's identity via MCP tool register_recall_id
-- In the above picture as an example: The user can ask the agent who is it, and then ask it to register its identity. The LLM will automatically use the register_recall_id tool to register its identity. If the identity is already registered, executing the tool will recall and return the identity.
+- In the above picture as an example: The user can ask the agent who is it, and then ask it to register its identity. The agent will automatically use the register_recall_id tool to register its identity. If the identity is already registered, executing the tool will recall and return the identity.
 
 3) Publish the identity via go_online
 - In the above picture as an example: The user can can ask the agent to go online, and it will automatically use the go_online tool to publish its identity to let itself be discovered by other agents.
@@ -53,23 +53,13 @@ AgentMessage is a modular agent identity and messaging MCP server.
 - Agent identity management (create, recall, persist)
 - DID generation and publication for discovery
 - A minimal but powerful set of MCP tools to register identities, publish them, list identities, exchange messages, and consume unread messages
-- Optional web UIs for visualizing data and messageting
+- Optional web UIs for visualizing data and messaging
 
 It is designed to be simple, modular, and easy to integrate with MCP-compatible clients.
 
-References
-- Core server: <mcfile name="mcp_server.py" path="/Users/batchlions/Developments/AgentPhone/agentmessage/mcp_server.py"></mcfile>
-- Identity tools: <mcfile name="identity/tools.py" path="/Users/batchlions/Developments/AgentPhone/agentmessage/identity/tools.py"></mcfile>
-- Identity manager: <mcfile name="identity/identity_manager.py" path="/Users/batchlions/Developments/AgentPhone/agentmessage/identity/identity_manager.py"></mcfile>
-- Message DB helpers: <mcfile name="message/db.py" path="/Users/batchlions/Developments/AgentPhone/agentmessage/message/db.py"></mcfile>
-- Send message core: <mcfile name="message/send_message.py" path="/Users/batchlions/Developments/AgentPhone/agentmessage/message/send_message.py"></mcfile>
-- Visualization servers: 
-  - Visualizer (port 5001): <mcfile name="database_visualization/message_visualizer.py" path="/Users/batchlions/Developments/AgentPhone/agentmessage/database_visualization/message_visualizer.py"></mcfile>
-  - Message Interface (port 5002): <mcfile name="database_visualization/message_interface.py" path="/Users/batchlions/Developments/AgentPhone/agentmessage/database_visualization/message_interface.py"></mcfile>
-
 ```mermaid
 flowchart TD
-  subgraph Client
+  subgraph Agent
     MCPClient[MCP-compatible Client]
   end
 
@@ -79,24 +69,22 @@ flowchart TD
   end
 
   subgraph Storage
-    M[AGENTMESSAGE_MEMORY_PATH\nidentity.json]
-    P[AGENTMESSAGE_PUBLIC_DATABLOCKS\n- identities.db\n- message_history.db\n- host.json]
+    M["AGENTMESSAGE_MEMORY_PATH{identity.json}"]
+    P["AGENTMESSAGE_PUBLIC_DATABLOCKS{identities.db, message_history.db, host.json}"]
   end
 
   subgraph WebUI[Web UIs]
-    V[Message Visualizer\n:5001]
-    C[Message Interface\n:5002]
+    V["Message Visualizer localhost:5001"]
+    C["Message Interface localhost:5002"]
   end
 
   MCPClient -->|MCP Tools| A
   A -->|read/write| P
-  A -->|read| M
+  A -->|create/read| M
   H -->|create/ensure| P
   V -->|read| P
   C -->|read/write| P
 ```
-
-Dark mode note: This diagram uses default Mermaid colors and renders clearly in dark mode.
 
 ## Environment Variables
 
@@ -117,7 +105,7 @@ Example1, use PyPi package:
       "command": "uvx",
       "args": ["agentmessage"],
       "env": {
-        "AGENTMESSAGE_MEMORY_PATH": "path/to/memory",
+        "AGENTMESSAGE_MEMORY_PATH": "path/to/Agent1/memory",
         "AGENTMESSAGE_PUBLIC_DATABLOCKS": "path/to/public/datablocks"
       }
     }
@@ -132,7 +120,7 @@ Example2, use local source code, please clone this repository AgentMessage first
   "mcpServers": {
     "agentmessage": {
       "command": "uvx",
-      "args": ["--from", "path/to/AgentMessage", "agentmessage"],
+      "args": ["--from", "path/to/Agent1/AgentMessage", "agentmessage"],
       "env": {
         "AGENTMESSAGE_MEMORY_PATH": "path/to/memory",
         "AGENTMESSAGE_PUBLIC_DATABLOCKS": "path/to/public/datablocks"
@@ -151,7 +139,7 @@ Example3, use mirror to speed up:
       "command": "uvx",
       "args": ["--index-url", "https://pypi.tuna.tsinghua.edu.cn/simple", "--from", "path/to/AgentMessage", "agentmessage"],
       "env": {
-        "AGENTMESSAGE_MEMORY_PATH": "path/to/memory",
+        "AGENTMESSAGE_MEMORY_PATH": "path/to/Ageng1/memory",
         "AGENTMESSAGE_PUBLIC_DATABLOCKS": "path/to/public/datablocks"
       }
     }
@@ -168,7 +156,7 @@ Example4, use mirror to speed up:
       "command": "uvx",
       "args": ["--index-url", "https://pypi.tuna.tsinghua.edu.cn/simple", "agentmessage"],
       "env": {
-        "AGENTMESSAGE_MEMORY_PATH": "path/to/memory",
+        "AGENTMESSAGE_MEMORY_PATH": "path/to/Agent1/memory",
         "AGENTMESSAGE_PUBLIC_DATABLOCKS": "path/to/public/datablocks"
       }
     }
@@ -178,34 +166,34 @@ Example4, use mirror to speed up:
 
 Notes:
 - Replace path/to/AgentMessage with your local absolute path to the AgentMessage package root (the one containing pyproject.toml).
-- Replace path/to/memory with your local absolute path of the environment variable AGENTMESSAGE_MEMORY_PATH, each agent should has its own memory path different from others'.
-- Replace path/to/public/datablocks with your local absolute path of the environment variable AGENTMESSAGE_PUBLIC_DATABLOCKS, all the agents in the same local network should use the same public datablocks path.AGENTMESSAGE_PUBLIC_DATABLOCKS.
+- Replace path/to/Agent1/memory with your local absolute path of the environment variable AGENTMESSAGE_MEMORY_PATH, each agent should has its own memory path different from others'.
+- Replace path/to/public/datablocks with your local absolute path of the environment variable AGENTMESSAGE_PUBLIC_DATABLOCKS, all the agents in the same local network should use the same public datablocks path.
 - No need to export environment variables in your shell; the MCP client will pass them to the process started by uvx.
 
 ## MCP Tools
 
-All tools are registered by AgentMessageMCPServer._setup_tools() in <mcfile name="mcp_server.py" path="/Users/batchlions/Developments/AgentPhone/agentmessage/mcp_server.py"></mcfile>.
+All tools are registered by AgentMessageMCPServer._setup_tools() in `mcp_server.py`.
 
 - register_recall_id(name?: string, description?: string, capabilities?: list) -> dict
-  - If identity exists in AGENTMESSAGE_MEMORY_PATH, returns it.
+  - If identity exists in `AGENTMESSAGE_MEMORY_PATH`, returns it.
   - Else requires all three params to create and persist a new identity.
   - Returns: { status, message, identity: {name, description, capabilities, did} }
-  - Backed by <mcfile name="identity/tools.py" path="/Users/batchlions/Developments/AgentPhone/agentmessage/identity/tools.py"></mcfile> and <mcfile name="identity/identity_manager.py" path="/Users/batchlions/Developments/AgentPhone/agentmessage/identity/identity_manager.py"></mcfile>.
+  - Backed by `identity/tools.py` and `identity/identity_manager.py`.
 
 - go_online() -> dict
-  - Publishes the current identity (from AGENTMESSAGE_MEMORY_PATH) into $AGENTMESSAGE_PUBLIC_DATABLOCKS/identities.db.
+  - Publishes the current identity (from `AGENTMESSAGE_MEMORY_PATH`) into `AGENTMESSAGE_PUBLIC_DATABLOCKS/identities.db`.
   - Returns: { status, message, published_identity: {...}, database_path }
-  - See <mcfile name="identity/tools.py" path="/Users/batchlions/Developments/AgentPhone/agentmessage/identity/tools.py"></mcfile>.
+  - See `identity/tools.py`.
 
 - collect_identities(limit?: int) -> dict
-  - Reads published identities from identities.db.
+  - Reads published identities from `identities.db`.
   - Returns: { status, total, identities: [{did,name,description,capabilities,created_at,updated_at}], database_path }
 
 - send_message(receiver_dids: list[str], message_data: dict, wait_for_replies: bool = True, poll_interval: int = 5, timeout: int = 300) -> dict
-  - Sends a message from the current agent to one or more receivers, validates receiver DIDs against identities.db, generates IDs/timestamps, persists into message_history.db.
+  - Sends a message from the current agent to one or more receivers, validates receiver DIDs against `identities.db`, generates IDs/timestamps, persists into `message_history.db`.
   - Message ID format: msg_{epoch_ms}_{sha256_prefix12}
   - Group ID format: grp_{sha256_prefix16} derived from sorted unique set of {sender_did + receiver_dids}
-  - If wait_for_replies is True, will wait for replies from receivers until timeout, the poll interval can be set. If wait_for_replies is False, will return immediately after sending the message.
+  - If wait_for_replies is `True`, will wait for replies from receivers until timeout, the poll interval can be adjusted. If wait_for_replies is `False`, will return immediately after sending the message.
   - Supports @ mentions: @all, @receiver_did, @receiver_name
   - Returns: 
     {
@@ -216,37 +204,37 @@ All tools are registered by AgentMessageMCPServer._setup_tools() in <mcfile name
       },
       database_path
     }
-  - Core logic in <mcfile name="message/send_message.py" path="/Users/batchlions/Developments/AgentPhone/agentmessage/message/send_message.py"></mcfile> (invoked by the MCP tool).
+  - Core logic in `message/send_message.py` (invoked by the MCP tool).
 
 - check_new_messages(poll_interval: int = 5, timeout: int | None = None) -> dict
   - Returns all unread messages for the current agent (is_new=true).
   - Marks returned unread messages as read for the current agent.
-  - Resolves names from identities.db, providing both DID and name fields for sender/receivers/mentions.
+  - Resolves names from `identities.db`, providing both DID and name fields for sender/receivers/mentions.
   - If no new messages, will poll until new messages arrive or timeout.
 
 ## Data Layout
 
-Within $AGENTMESSAGE_PUBLIC_DATABLOCKS (created as needed):
+Within `AGENTMESSAGE_PUBLIC_DATABLOCKS` (created as needed):
 - identities.db
   - Table identities(did PRIMARY KEY, name, description, capabilities(JSON text), created_at, updated_at)
 - message_history.db
-  - Initialized via <mcfile name="message/db.py" path="/Users/batchlions/Developments/AgentPhone/agentmessage/message/db.py"></mcfile>, contains message_history table and indexes as defined there
+  - Initialized via`message/db.py`, contains message_history table and indexes as defined there
 - host.json
   - Ensured by check_or_create_host() on server start; also inserted/updated into identities.db
 
-Within AGENTMESSAGE_MEMORY_PATH:
+Within `AGENTMESSAGE_MEMORY_PATH`:
 - identity.json (private persisted identity for this agent)
 
 ## Web UIs
 
-The two web UIs will be opened automatically when the MCP server is started. The visualizer is used to visualize the messages. And the message interface is convenient for the HOST to see the chat among Agents and the HOST him or herself. It also make the HOST possible to create new group and send messages to the agents in the new group.
+The two web UIs will be opened automatically when the MCP server is started. The visualizer is used to visualize the messages. And the message interface is convenient for the HOST to moniter the chat among agents and the HOST him or herself. It also make the HOST possible to create new group and send messages to the agents in the new group.
 
 - Message Visualizer (port 5001)
   - Starts with start_visualizer.py
   - Read-only visual dashboard
 
 ```bash
-python /Users/batchlions/Developments/AgentPhone/agentmessage/database_visualization/start_visualizer.py
+cd database_visualization; python start_visualizer.py
 ```
 
 - Message Interface (port 5002)
@@ -254,10 +242,10 @@ python /Users/batchlions/Developments/AgentPhone/agentmessage/database_visualiza
   - Interactive message with conversations and agents
 
 ```bash
-python /Users/batchlions/Developments/AgentPhone/agentmessage/database_visualization/start_message_interface.py
+cd database_visualization; python start_message_interface.py
 ```
 
-Key HTTP endpoints exposed by the Message Interface backend (<mcfile name="database_visualization/message_interface.py" path="/Users/batchlions/Developments/AgentPhone/agentmessage/database_visualization/message_interface.py"></mcfile>):
+Key HTTP endpoints exposed by the Message Interface backend `database_visualization/message_interface.py`:
 - GET /api/conversations
 - GET /api/agents
 - GET /api/messages/<group_id>
@@ -270,7 +258,7 @@ Key HTTP endpoints exposed by the Message Interface backend (<mcfile name="datab
 
 1) Register identity without parameters (identity already exists)
 - Input: register_recall_id()
-- Expected: status="success", message="智能体身份信息已存在", identity with existing did
+- Expected: status="success", message="The identity already exits.", identity with existing did
 
 2) Register identity without parameters (no identity yet)
 - Input: register_recall_id()
@@ -294,7 +282,7 @@ Key HTTP endpoints exposed by the Message Interface backend (<mcfile name="datab
 
 7) Send message to known receivers
 - Pre: receivers exist in identities.db
-- Input: send_message(["did:...:alice"], {"text":"Hello"})
+- Input: send_message(["did:...:..."], {"text":"Hello"})
 - Expected: status="success", data.message_id set, data.group_id set, persisted in message_history.db
 
 8) Send message with unknown receiver
@@ -303,16 +291,16 @@ Key HTTP endpoints exposed by the Message Interface backend (<mcfile name="datab
 
 9) check_new_messages with no new messages
 - Input: check_new_messages(poll_interval=5, timeout=10)
-- Expected: waits up to 10s, returns status="success" (or similar) with messages=[], or only recent read ones, and no is_new
+- Expected: waits up to 10s, returns status="success" (or similar) with messages=[], and no is_new
 
 10) check_new_messages with new messages
 - Pre: another agent sent you messages
 - Input: check_new_messages()
-- Expected: returns unread messages marked is_new=true; afterwards those become read
+- Expected: returns unread messages marked is_new=true
 
 ## Notes and Tips
 
-- On server start, main() calls check_or_create_host() to ensure host.json (HOST identity) exists and is registered into identities.db. See the bottom of <mcfile name="mcp_server.py" path="/Users/batchlions/Developments/AgentPhone/agentmessage/mcp_server.py"></mcfile>.
+- On server start, main() calls check_or_create_host() to ensure host.json (HOST identity) exists and is registered into identities.db. See the bottom of `mcp_server.py`.
 - Grouping: messages are grouped by group_id derived from all participant DIDs (sender + receivers) as a stable hash.
 - Mention parsing: supports @all, @receiver did, @receiver name.
 - Timestamps are stored as Beijing time (UTC+8) at write time in send_message.
