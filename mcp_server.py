@@ -184,14 +184,17 @@ class AgentMessageMCPServer:
             timeout: int = 300
         ) -> dict:
             """
-            ***Please never forget to reply the message sender after receiving a new message, unless the message requires no replies.***
-            Send messages to other agents, i.e. each receiver in the receiver_dids list.
-            Used to chat or communicate or interactive or cooperate with other agents.
-            Used to discuss with other agents about a specific topic.
-            When chatting or discussing with other agents, you can wait for replies with poll_interval < 5 and timeout > 300.
-            When cooperating with other agents under a specific task, set poll_interval < 5 seconds and timeout = 0 seconds but never forget to reply the message sender after finishing the subtask relevant.
-            If you wait for replies, please reply all the receivers after each receiver replies or timeout.
-            Use @ mentions to mention other agents (supports @all, @receiverDID, @receiverName)
+            **Function**:
+            - Send messages to one or more receivers in the receiver_dids list.
+            - Used to chat or communicate or interactive or cooperate with other agents.
+            - Used to discuss with other agents about a specific topic.
+            - Use @ mentions to mention other agents (supports @all, @receiverDID, @receiverName)
+            **Attention**:
+            - **Reply to all receivers**: If there are more than one receivers, then you are in group chat. Please send messages to all of them afterwards until the group chat is over.
+            - **Reply to all receivers**: If you wait for replies, there are more than one receivers and at last only some of the receivers have replied, don't just reply the ones who have replied but reply all of the receivers. Rember you are in group chat.
+            **Parameter setting**:
+            - When chatting or discussing with other agents, you can wait for replies with poll_interval < 5 and timeout > 300.
+            - When cooperating with other agents under a specific task, set poll_interval < 5 seconds and timeout = 0 seconds but never forget to reply the message sender after finishing the subtask relevant.
             
             Parameters:
             - receiver_dids: List of receiver DIDs (cannot be empty)
@@ -245,20 +248,28 @@ class AgentMessageMCPServer:
         @self.mcp.tool()
         async def check_new_messages(
                 poll_interval: int = 5,
-                timeout: int | None = None
+                timeout: int | None = None,
+                with_history: bool = False
             ) -> dict:
             """
-            Check new messages sent to you, return unread messages based on read_status field of each message, and mark current user as read after reading.
-            Used to chat or communicate or interactive or cooperate with other agents.
-            Never forget to reply the message sender after receiving the message unless the message requires no replies.
-            When replying, if the message has 2 or more recipients, please send the reply to the sender and all the other recipients (excluding the sender itself).
-            When chatting, set poll_interval < 5 seconds and timeout > 300 seconds.
-            When cooperating with other agents under a specific task, set poll_interval < 5 seconds and timeout = 0 seconds but never forget to reply the message sender after finishing the subtask relevant.
+            **Function**:
+            - Check new messages sent to you.
+            - If with_history is True, return 3 history messages previous to the first new one in the same chat group.
+            - Used to chat or communicate or interactive or cooperate with other agents.
+            - Used to discuss with other agents about a specific topic.
+            **Attention**:
+            - **Neverforget to reply**: Never forget to use send_message to reply the message sender and all the other receivers after receiving the message unless the message requires no replies.
+            - **Reply the sender and all the other receivers**: When replying, don't just reply one or some of them. If the message has 2 or more receivers, please reply to the sender and all the other receivers (excluding the sender itself).
+            - **Reply the group with the latest new message first**: If there are new messages in more than one groups, please reply the group with the latest new message first. Replying a group means sending message to all the other members in the group.
+            **Parameter seting**:
+            - When chatting, set poll_interval < 5 seconds and timeout > 300 seconds.
+            - When cooperating with other agents under a specific task, set poll_interval < 5 seconds and timeout = 0 seconds but never forget to reply the message sender after finishing the subtask relevant.
             
             Parameters:
             - poll_interval: Polling interval in seconds when no new messages (default 5 seconds)
-            - timeout: Polling timeout in seconds waiting for new messages. When None, will wait indefinitely until new messages appear.
-            
+            - timeout: Polling timeout in seconds waiting for new messages. When None or less or equal to 0, will wait indefinitely until new messages appear.
+            - with_history: Whether to return 3 history messages.
+
             Return:
             - success:
             {
@@ -301,7 +312,10 @@ class AgentMessageMCPServer:
                 "message": str
             }
             """
-            limit: int = 0  # limit: Maximum number of read messages returned per group (default 10). Returns "all unread messages + last limit read messages", sorted by time ascending; when non-positive, no limit (returns all messages).
+            limit: int = 0
+            if with_history:
+                limit = 3  # limit: Maximum number of read messages returned per group (default 10). Returns "all unread messages + last limit read messages", sorted by time ascending; when non-positive, no limit (returns all messages).
+            
             try:
                 # Get local identity DID
                 identity_manager = IdentityManager()
@@ -493,7 +507,7 @@ class AgentMessageMCPServer:
                         conn.close()
 
                     # There are no new messages -> check timeout or continue polling
-                    if timeout is not None and time.time() - start_time >= timeout:
+                    if timeout is not None and timeout > 0 and time.time() - start_time >= timeout:
                         return {
                             "status": "timeout",
                             "message": "Timeout waiting for new messages.",
