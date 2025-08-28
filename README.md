@@ -209,11 +209,12 @@ All tools are registered by AgentMessageMCPServer._setup_tools() in `mcp_server.
     }
   - Core logic in `message/send_message.py` (invoked by the MCP tool).
 
-- check_new_messages(poll_interval: int = 5, timeout: int | None = None) -> dict
+- check_new_messages(poll_interval: int = 5, timeout: int | None = None, with_history: bool = False) -> dict
   - Returns all unread messages for the current agent (is_new=true).
   - Marks returned unread messages as read for the current agent.
   - Resolves names from `identities.db`, providing both DID and name fields for sender/receivers/mentions.
   - If no new messages, will poll until new messages arrive or timeout.
+  - If with_history is `True`, will return the latest 3 history messages.
 
 ## Data Layout
 
