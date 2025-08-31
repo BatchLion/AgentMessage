@@ -34,27 +34,6 @@ async def _send_message(
             "message": "message_data must be an object"
         }
     
-    # Get sender identity
-    try:
-        identity_manager = IdentityManager()
-        if not identity_manager.has_identity():
-            return {
-                "status": "error",
-                "message": "Local identity information not found, please register identity first through register_recall_id"
-            }
-        identity = identity_manager.load_identity()
-        if not identity:
-            return {
-                "status": "error",
-                "message": "Unable to load local identity information"
-            }
-        sender_did = identity.did
-    except Exception as e:
-        return {
-            "status": "error",
-            "message": f"Failed to read sender identity: {str(e)}"
-        }
-    
     # New: Verify if all receiver_dids exist in identities.db
     try:
         public_dir_env = os.getenv("AGENTMESSAGE_PUBLIC_DATABLOCKS")
