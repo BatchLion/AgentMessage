@@ -429,6 +429,8 @@
             border-left: 1px solid #333;
             display: flex;
             flex-direction: column;
+            min-height: 0; /* allow inner flex child to scroll */
+            overflow: hidden; /* keep header/footer fixed; scroll only the list */
         }
 
         .agents-header {
@@ -442,6 +444,26 @@
         .agents-list {
             flex: 1;
             overflow-y: auto;
+            -webkit-overflow-scrolling: touch; /* smooth on macOS/iOS */
+            overscroll-behavior: contain;      /* prevent overscroll chaining */
+            scrollbar-gutter: stable both-edges; /* reserve space for scrollbar */
+            scrollbar-width: thin;               /* Firefox thin scrollbar */
+        }
+
+        /* WebKit scrollbar styling for agents list */
+        .agents-list::-webkit-scrollbar {
+            width: 10px;
+        }
+        .agents-list::-webkit-scrollbar-track {
+            background: #1a1a1a;
+        }
+        .agents-list::-webkit-scrollbar-thumb {
+            background-color: #444;
+            border-radius: 8px;
+            border: 2px solid #1a1a1a;
+        }
+        .agents-list::-webkit-scrollbar-thumb:hover {
+            background-color: #555;
         }
 
         .agent-item {
