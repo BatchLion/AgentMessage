@@ -24,14 +24,12 @@ public_env = os.getenv('AGENTMESSAGE_PUBLIC_DATABLOCKS')
 if public_env:
     data_dir = Path(public_env)
 else:
-    data_dir = Path(__file__).parent.parent / "data"
-    os.environ['AGENTMESSAGE_PUBLIC_DATABLOCKS'] = str(data_dir.absolute())
+    print("AGENTMESSAGE_PUBLIC_DATABLOCKS not set, please set the correct AGENTMESSAGE_PUBLIC_DATABLOCKS environment variable")
 
 # Add parent directory to path to import message module
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 from message.send_message import _send_message
-from identity.identity_manager import IdentityManager
-from identity.models import AgentIdentity
+from identity.did_generator import DIDGenerator
 
 app = Flask(__name__)
 app.config['SECRET_KEY'] = 'message_interface_secret_key'
@@ -130,44 +128,6 @@ class MessageMonitor:
 # Start monitoring thread when loading the module (ensure starting only once)
 _monitor_instance = MessageMonitor()
 _monitor_instance.start_monitoring()
-
-def ensure_host_identity():
-    """Ensure HOST identity is registered in the identity manager"""
-    try:
-        identity_manager = IdentityManager()
-        
-        # Check if identity already exists
-        if identity_manager.has_identity():
-            existing_identity = identity_manager.load_identity()
-            if existing_identity and existing_identity.name == "HOST":
-                return existing_identity.did
-        
-        # Load HOST data from host.json
-        if not HOST_JSON_PATH.exists():
-            return None
-            
-        with open(HOST_JSON_PATH, 'r', encoding='utf-8') as f:
-            host_data = json.load(f)
-        
-        # Create HOST identity using the DID from host.json
-        host_identity = AgentIdentity(
-            name=host_data.get('name', 'HOST'),
-            description=host_data.get('description', 'The user of the MCP service and the host of the agents.'),
-            capabilities=['message', 'message_sending'],
-            did=host_data.get('did')
-        )
-        
-        # Save the identity
-        if identity_manager.save_identity(host_identity):
-            print(f"HOST identity registered: {host_identity.did}")
-            return host_identity.did
-        else:
-            print("Failed to save HOST identity")
-            return None
-            
-    except Exception as e:
-        print(f"Error ensuring HOST identity: {e}")
-        return None
 
 def get_host_did():
     """Get HOST DID from host.json file"""
@@ -459,7 +419,7 @@ def handle_send_message(data):
             return
         
         # Ensure HOST identity is registered and get DID
-        host_did = ensure_host_identity()
+        host_did = get_host_did()
         if not host_did:
             emit('message_error', {'error': 'Failed to register or load HOST identity'})
             return
