@@ -184,10 +184,7 @@ def get_host_did():
 
 def get_conversation_participants(group_id):
     """Get all participants (receiver DIDs) for a conversation group"""
-    if not DB_PATH.exists():
-        return []
-    
-    # Added: Prefer reading participants from memory map (for newly created conversations without messages yet)
+    # Prefer reading participants from in-memory map first (for newly created conversations without messages yet)
     with NEW_CONV_LOCK:
         if group_id in NEW_CONVERSATION_PARTICIPANTS:
             participants = list(NEW_CONVERSATION_PARTICIPANTS[group_id])
@@ -196,32 +193,39 @@ def get_conversation_participants(group_id):
             if host_did and host_did in participants:
                 participants = [p for p in participants if p != host_did]
             return participants
-    
+
+    # If database doesn't exist yet, no persisted participants can be found
+    if not DB_PATH.exists():
+        return []
+
     conn = sqlite3.connect(DB_PATH)
     try:
         cursor = conn.cursor()
-        cursor.execute("""
+        cursor.execute(
+            """
             SELECT DISTINCT sender_did, receiver_dids
             FROM message_history 
             WHERE group_id = ?
-        """, (group_id,))
-        
+            """,
+            (group_id,)
+        )
+
         all_participants = set()
         for row in cursor.fetchall():
             sender_did, receiver_dids_json = row
             all_participants.add(sender_did)
-            
+
             try:
                 receiver_dids = json.loads(receiver_dids_json) if receiver_dids_json else []
                 all_participants.update(receiver_dids)
             except Exception:
                 continue
-        
+
         # Remove HOST DID from participants (HOST shouldn't send to themselves)
         host_did = get_host_did()
         if host_did and host_did in all_participants:
             all_participants.remove(host_did)
-        
+
         return list(all_participants)
     finally:
         conn.close()
