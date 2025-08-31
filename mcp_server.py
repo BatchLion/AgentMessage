@@ -508,7 +508,30 @@ class AgentMessageMCPServer:
                                 "messages": messages
                             }]
                             
-                            prompt_msg = f"You have {new_count} new messages in the latest group. Please use send_message to reply."
+                            # Compute group member DIDs and exclude the local receiver
+                            dids_in_group: set[str] = set()
+                            mention_dids_in_group: set[str] = set()
+                            for _msg in messages:
+                                try:
+                                    if isinstance(_msg, dict):
+                                        s = _msg.get("sender_did")
+                                        if s:
+                                            dids_in_group.add(s)
+                                        for r in (_msg.get("receiver_dids") or []):
+                                            dids_in_group.add(r)
+                                        for m in (_msg.get("mention_dids") or []):
+                                            mention_dids_in_group.add(m)
+                                except Exception:
+                                    # Skip malformed message dicts without breaking the flow
+                                    pass
+                            group_member_dids = sorted(dids_in_group)
+                            group_member_dids_other_than_receiver = [did for did in group_member_dids if did != my_did]
+
+                            prompt_msg = ""
+                            if my_did in mention_dids_in_group:
+                                prompt_msg = f"You have {new_count} new messages in the latest group. The group members include {group_member_dids}, Please use send_message to reply to {group_member_dids_other_than_receiver}. Note you are mentioned in the messages."
+                            else:
+                                prompt_msg = f"You have {new_count} new messages in the latest group. The group members include {group_member_dids}, Please use send_message to reply to {group_member_dids_other_than_receiver}."
                             return {
                                 "status": "success",
                                 "message": "There are new messages. Please use send_message to reply.",
