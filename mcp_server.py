@@ -254,13 +254,14 @@ class AgentMessageMCPServer:
             """
             **Function**:
             - Check new messages sent to you.
-            - If with_history is True, return 3 history messages previous to the first new one in the same chat group.
+            - **Could be used to check 3 recent history messages**: If with_history is True, return 3 history messages previous to the first new one in the same chat group.
             - Used to chat or communicate or interactive or cooperate with other agents.
             - Used to discuss with other agents about a specific topic.
             **Attention**:
             - **Neverforget to reply**: Never forget to use send_message to reply the message sender and all the other receivers after receiving the message unless the message requires no replies.
             - **Reply the sender and all the other receivers**: When replying, don't just reply one or some of them. If the message has 2 or more receivers, please reply to the sender and all the other receivers (excluding the sender itself).
-            - **Reply the group with the latest new message first**: If there are new messages in more than one groups, please reply the group with the latest new message first. Replying a group means sending message to all the other members in the group.
+            - **Only the latest group is returned**: If there are new messages in more than one groups, only the group with the latest new message will be returned and marked as read. Other groups' messages will remain unread for future processing.
+            - **Reply the returned group**: When replying, don't just reply one or some of them. If the message has 2 or more receivers, please reply to the sender and all the other receivers (excluding the sender itself).
             **Parameter seting**:
             - When chatting, set poll_interval < 5 seconds and timeout > 300 seconds.
             - When cooperating with other agents under a specific task, set poll_interval < 5 seconds and timeout = 0 seconds but never forget to reply the message sender after finishing the subtask relevant.
@@ -354,6 +355,7 @@ class AgentMessageMCPServer:
 
                         groups = []
                         total_new = 0
+                        latest_group_info = None  # (group_id, latest_timestamp, new_count, messages, messages_to_mark_read)
 
                         # Prepare identities.db path for DID->name conversion
                         did_to_name_cache: dict[str, str] = {}
@@ -466,7 +468,25 @@ class AgentMessageMCPServer:
                                     "is_new": is_new
                                 })
 
-                            # Write back: Mark unread messages as read (only update current user's read_status)
+                            # Track the group with latest timestamp if it has new messages
+                            if new_count > 0:
+                                # Find the latest timestamp among unread messages in this group
+                                latest_timestamp = max(ts for (mid, ts, sender, receivers, msg_data, mentions, is_new) in unread_items)
+                                
+                                # Update latest_group_info if this group has a later timestamp
+                                if latest_group_info is None or latest_timestamp > latest_group_info[1]:
+                                    latest_group_info = (gid, latest_timestamp, new_count, messages, messages_to_mark_read)
+                            
+                            total_new += new_count
+
+                        if id_conn:
+                            id_conn.close()
+
+                        # If there are new messages, only process the group with the latest timestamp
+                        if total_new > 0 and latest_group_info is not None:
+                            gid, latest_timestamp, new_count, messages, messages_to_mark_read = latest_group_info
+                            
+                            # Mark only the latest group's unread messages as read
                             for mid, existing_rs in messages_to_mark_read:
                                 try:
                                     existing_rs = existing_rs if isinstance(existing_rs, dict) else {}
@@ -478,24 +498,17 @@ class AgentMessageMCPServer:
                                 except Exception:
                                     # Single update failure does not affect overall
                                     pass
-
-                            total_new += new_count
-                            # Only return this group when it has new messages (return "all unread + last limit read")
-                            if new_count > 0:
-                                groups.append({
-                                    "group_id": gid,
-                                    "new_count": new_count,
-                                    "messages": messages
-                                })
-
-                        if id_conn:
-                            id_conn.close()
-
-                        conn.commit()
-
-                        # If there are new messages, return immediately and remind users to use send_message to reply
-                        if total_new > 0:
-                            prompt_msg = f"You have {total_new} new messages. Please use send_message to reply."
+                            
+                            conn.commit()
+                            
+                            # Return only the latest group
+                            groups = [{
+                                "group_id": gid,
+                                "new_count": new_count,
+                                "messages": messages
+                            }]
+                            
+                            prompt_msg = f"You have {new_count} new messages in the latest group. Please use send_message to reply."
                             return {
                                 "status": "success",
                                 "message": "There are new messages. Please use send_message to reply.",
@@ -503,6 +516,8 @@ class AgentMessageMCPServer:
                                 "database_path": str(db_path),
                                 "prompt": prompt_msg
                             }
+                        
+                        conn.commit()
                     finally:
                         conn.close()
 
