@@ -300,50 +300,53 @@ def get_conversations():
         conn.close()
 
 def get_agents():
-    """Get list of available agents with their names"""
-    if not DB_PATH.exists():
+    """Get list of available agents from identities database"""
+    if not IDENTITIES_DB_PATH.exists():
         return []
-    
-    # Get agent names mapping
-    agent_names = get_agent_names()
-    
-    conn = sqlite3.connect(DB_PATH)
+
+    host_did = get_host_did()
+
+    conn = sqlite3.connect(IDENTITIES_DB_PATH)
     try:
         cursor = conn.cursor()
-        cursor.execute("""
-            SELECT 
-                sender_did,
-                COUNT(*) as message_count,
-                MAX(timestamp) as last_active
-            FROM message_history 
-            GROUP BY sender_did 
-            ORDER BY MAX(datetime(timestamp)) DESC
-        """)
-        
+        cursor.execute(
+            """
+            SELECT did, name, description, updated_at
+            FROM identities
+            ORDER BY datetime(updated_at) DESC
+            """
+        )
+
         agents = []
-        for row in cursor.fetchall():
-            sender_did, msg_count, last_active = row
-            
-            # Get agent name from identities database, fallback to DID
-            agent_name = agent_names.get(sender_did)
-            if not agent_name:
-                # Fallback to shortened DID if no name found
-                agent_name = sender_did.split(':')[-1][:8] if ':' in sender_did else sender_did[:8]
-            
-            # Check if active (last message within 24 hours)
-            last_time = datetime.strptime(last_active, "%Y-%m-%d %H:%M:%S")
-            is_online = (datetime.now() - last_time).total_seconds() < 86400
-            
+        for did, name, description, updated_at in cursor.fetchall():
+            # Exclude HOST from the selectable agents list
+            if host_did and did == host_did:
+                continue
+
+            display_name = name if name else (did.split(':')[-1][:8] if ':' in did else did[:8])
+            desc = description if description else f"Agent {display_name}"
+
+            # Consider an agent online if updated within last 24 hours
+            is_online = True
+            if updated_at:
+                try:
+                    last_time = datetime.strptime(updated_at, "%Y-%m-%d %H:%M:%S")
+                    is_online = (datetime.now() - last_time).total_seconds() < 86400
+                except Exception:
+                    # If parsing fails, default to online to ensure visibility
+                    is_online = True
+
             agents.append({
-                'did': sender_did,
-                'display_name': agent_name,
-                'description': f"Agent {agent_name}",
-                'message_count': msg_count,
-                'last_active': last_active,
+                'did': did,
+                'display_name': display_name,
+                'description': desc,
                 'is_online': is_online
             })
-        
+
         return agents
+    except Exception as e:
+        print(f"Error loading agents from identities.db: {e}")
+        return []
     finally:
         conn.close()
 
