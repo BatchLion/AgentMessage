@@ -1,7 +1,8 @@
 """AgentMessage MCP server entry point"""
 
 from fastmcp import FastMCP
-from identity.tools import register_recall_id as _register_recall_id, discovered_locally as _discovered_locally, collect_local_identities as _collect_local_identities
+from identity.tools import register_recall_id as _register_recall_id, discovered_locally as _discovered_locally, discovered_globally as _discovered_globally, collect_local_identities as _collect_local_identities
+from dotenv import load_dotenv
 import sqlite3
 import json
 import os
@@ -62,21 +63,54 @@ class AgentMessageMCPServer:
             """Publish the agent identity to make it discoverable by other agents
             Functionality:
             - Retrieve agent identity from AGENTMESSAGE_MEMORY_PATH
-            - If identity exists, publish it to $AGENTMESSAGE_PUBLIC_DATABLOCKS/identities.db
+            - Always publish to local database ($AGENTMESSAGE_PUBLIC_DATABLOCKS/identities.db)
+            - If REMOTE_DISCOVERABLE=true, also publish to remote PostgreSQL server
             - If identity is empty, prompt to use register_recall_id first
-            - If AGENTMESSAGE_PUBLIC_DATABLOCKS is not set, prompt to define it in the MCP configuration file
             Environment variables:
             - AGENTMESSAGE_MEMORY_PATH: identity memory storage directory (read)
             - AGENTMESSAGE_PUBLIC_DATABLOCKS: public database directory (write identities.db)
+            - REMOTE_DISCOVERABLE: whether to publish to remote server (true/false)
+            - Remote database config from .env file (when REMOTE_DISCOVERABLE=true)
             Return format:
             - A dictionary containing operation status, message, and published identity, e.g.:
-              { "status": "...", "message": "Explanation", "published_identity": {...} }
+              { "status": "...", "message": "Explanation", "published_identity": {...}, "remote_published": true/false }
             Notes:
             - Ensure identity has been registered using register_recall_id before publishing
             - Ensure AGENTMESSAGE_PUBLIC_DATABLOCKS is set and points to a writable directory
-            - Published information is stored locally for other agents to query
+            - When REMOTE_DISCOVERABLE=true, also ensure remote database configuration is complete
             """
-            return _discovered_locally()
+            # Load environment variables from .env file
+            load_dotenv()
+            
+            # Always publish locally first
+            local_result = _discovered_locally()
+            
+            # Check if remote publishing is enabled
+            remote_discoverable = os.getenv('REMOTE_DISCOVERABLE', 'false').lower() == 'true'
+            
+            if not remote_discoverable:
+                # Only local publishing
+                return local_result
+            else:
+                # Both local and remote publishing
+                if local_result.get('status') != 'success':
+                    # If local publishing failed, don't attempt remote
+                    return local_result
+                
+                # Attempt remote publishing
+                remote_result = _discovered_globally()
+                
+                # Combine results
+                combined_result = {
+                    "status": "success" if remote_result.get('status') == 'success' else "partial_success",
+                    "message": f"Local: {local_result.get('message', '')}. Remote: {remote_result.get('message', '')}",
+                    "published_identity": local_result.get('published_identity', {}),
+                    "local_database_path": local_result.get('database_path', ''),
+                    "remote_database": remote_result.get('remote_database', ''),
+                    "remote_published": remote_result.get('status') == 'success'
+                }
+                
+                return combined_result
         
         # Collect identities from identities.db
         @self.mcp.tool()
