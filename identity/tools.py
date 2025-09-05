@@ -83,7 +83,7 @@ def register_recall_id(
             "message": f"Failed to create identity information: {str(e)}"
         }
 
-def go_online() -> Dict[str, Any]:
+def discovered_locally() -> Dict[str, Any]:
     """Make agent identity information public and visible to other agents
     
     This tool retrieves identity information from AGENTMESSAGE_MEMORY_PATH,
@@ -196,4 +196,100 @@ def go_online() -> Dict[str, Any]:
         return {
             "status": "error",
             "message": f"Failed to publish identity information: {str(e)}"
+        }
+
+async def collect_local_identities(limit: int | None = None) -> dict:
+    """Collect identities from identities.db database
+    Path:
+    - $AGENTMESSAGE_PUBLIC_DATABLOCKS/identities.db
+    
+    Parameters:
+    - limit: Optional, limit the number of records returned
+    
+    Returns:
+    {
+        "status": "success",
+        "total": <int>,
+        "identities": [
+        {
+            "did": "...",
+            "name": "...",
+            "description": "...",
+            "capabilities": [...],
+            "created_at": "YYYY-MM-DD HH:MM:SS",
+            "updated_at": "YYYY-MM-DD HH:MM:SS"
+        },
+        ...
+        ],
+        "database_path": "<Absolute path of identities.db>"
+    }
+    """
+    try:
+        public_dir_env = os.getenv("AGENTMESSAGE_PUBLIC_DATABLOCKS")
+        if not public_dir_env:
+            return {
+                "status": "error",
+                "message": "AGENTMESSAGE_PUBLIC_DATABLOCKS environment variable is not set. Please define it in the MCP configuration file."
+            }
+        
+        db_path = Path(public_dir_env) / "identities.db"
+        if not db_path.exists():
+            return {
+                "status": "error",
+                "message": "identities.db file not found",
+                "expected_path": str(db_path)
+            }
+        
+        conn = sqlite3.connect(db_path)
+        cursor = conn.cursor()
+        
+        sql = """
+            SELECT did, name, description, capabilities, created_at, updated_at
+            FROM identities
+            ORDER BY datetime(updated_at) DESC
+        """
+        if limit is not None and isinstance(limit, int) and limit > 0:
+            sql += " LIMIT ?"
+            cursor.execute(sql, (limit,))
+        else:
+            cursor.execute(sql)
+        
+        rows = cursor.fetchall()
+        conn.close()
+        
+        identities = []
+        for did, name, description, capabilities_text, created_at, updated_at in rows:
+            # capabilities is stored as JSON text, needs to be deserialized into a list
+            try:
+                capabilities = json.loads(capabilities_text) if capabilities_text else []
+                if not isinstance(capabilities, list):
+                    capabilities = []
+            except Exception:
+                capabilities = []
+            
+            identities.append({
+                "did": did,
+                "name": name,
+                "description": description,
+                "capabilities": capabilities,
+                "created_at": created_at,
+                "updated_at": updated_at,
+                "position": "local"
+            })
+        
+        return {
+            "status": "success",
+            "total": len(identities),
+            "identities": identities,
+            "database_path": str(db_path)
+        }
+    except sqlite3.OperationalError as e:
+        return {
+            "status": "error",
+            "message": f"Database operation failed: {str(e)}"
+        }
+    except Exception as e:
+        return {
+            "status": "error",
+            "message": f"Collect identities failed: {str(e)}"
         }
