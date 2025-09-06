@@ -1,0 +1,28 @@
+# Remote Server Dependencies for AgentMessage
+
+# PostgreSQL adapter for Python
+psycopg2-binary>=2.9.5
+
+# Environment variable management
+python-dotenv>=1.0.0
+
+# JSON handling (usually included in Python standard library)
+# json - built-in
+
+# Logging (usually included in Python standard library)
+# logging - built-in
+
+# Type hints support
+typing-extensions>=4.0.0
+
+# Connection pooling (included with psycopg2)
+# psycopg2.pool - included
+
+# Optional: Redis client for caching
+redis>=4.5.0
+
+# Optional: SQLAlchemy for advanced ORM features
+# sqlalchemy>=2.0.0
+
+# Optional: Alembic for database migrations
+# alembic>=1.10.0
